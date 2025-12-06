@@ -1,0 +1,48 @@
+name: sharego
+description: ShareGo mobile app (Flutter)
+version: 0.0.1+1
+environment:
+  sdk: ">=3.3.0 <4.0.0"
+
+dependencies:
+  flutter:
+    sdk: flutter
+  flutter_dotenv: ^6.0.0
+  dio: ^5.4.0
+  dio_smart_retry: ^7.0.1
+  flutter_riverpod: ^3.0.3
+  shared_preferences: ^2.3.2
+  go_router: ^17.0.0
+  intl: ^0.20.2
+  google_fonts: ^6.2.1
+  state_notifier: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.1
+
+flutter:
+  uses-material-design: true
+  assets:
+    - .env
+    - assets/sharego_logo.png
+    - assets/sharego_logo2.png
+    - assets/google.png
+    - assets/1 mc.png
+    - assets/2 mc.png
+    - assets/3 mc.png
+    - assets/4 mc.png
+    - assets/1 ps5.png
+    - assets/2 ps5.png
+    - assets/3 ps5.png
+    - assets/4 ps5.png
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: assets/sharego_logo.png
+  min_sdk_android: 21
+  adaptive_icon_background: assets/sharego_logo.png
+  adaptive_icon_foreground: assets/sharego_logo.png

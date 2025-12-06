@@ -1,0 +1,108 @@
+# ShareGo Orchestration Log (Working Copy)
+
+## Documents Ingested
+- data/ShareGo Proposal.pdf - concept and goals.
+- data/ShareGo Report 2.pdf - SRS, use cases, data dictionary (users, trips, travel_proof, booking, escrow, requests, messages, market_listing, reviews), architecture (Flutter + FastAPI + SQLite), security/UX guidance.
+- data/ShareGo Logo 1.png - brand asset (not processed).
+- Missing `/mnt/data/Share Go Backend.docx` (not found); latest PDF treated as authoritative.
+
+## Core Scope & Constraints (Pakistan-first)
+- Currency PKR, distance in km, timezone Asia/Karachi.
+- Low-bandwidth/offline: image compression, retries, action queue, cached reads.
+- Legal: ShareGo does not handle payments/delivery/courier; users arrange logistics and comply with local laws. Marketplace disclaimer must be visible on relevant screens.
+- Security: email OTP -> hashed storage -> JWT (roles: user, admin, ops); owner-only mutations; audit logging; hashed QR/OTP for handovers.
+- Escrow only for Feature A (personal shopping/delivery). Marketplace Feature B uses offer/counter-offer, no bidding/auction, no escrow. Meaningful 400/401/403/404 responses.
+- Media stored under `./media/` (or MinIO option).
+
+## Architecture Baseline
+- Mobile: Flutter app; Dio REST; Riverpod/BLoC; offline queue/retry; image compression; QR scan; GPS capture.
+- Backend: FastAPI monolith; SQLite `sharego.db`; Jinja2 admin for ops/KYC/moderation; read-only AI micro-app for FAQs/DB queries.
+- Entities: users, trips, travel_proof, requests, bookings, escrow (Feature A), messages, market_listings, offers/counter-offers, meetups, reviews, audit logs.
+
+## Agent-B (Backend Lead - "Ops-Safe FastAPI")
+Mission: FastAPI monolith with SQLite, admin Jinja2, read-only AI, and robust validation.
+
+To-Do (initial)
+- [ ] Scaffolding: settings (PKR, Asia/Karachi), SQLite/Alembic, media storage (local/MinIO), logging/audit.
+- [ ] Auth: email OTP issuance/verification (hashed), JWT with roles, session/audit logs, rate limiting.
+- [ ] Data models/repos: users, trips, travel_proof, requests, bookings, escrow, messages, market_listings, offers/counter-offers, meetups, reviews; migrations/backups.
+- [ ] Feature A: CRUD endpoints, booking state machine, escrow (sim), QR/OTP handover validation, owner-only mutations.
+- [ ] Feature B: listing CRUD, media upload, offer/counter-offer (no bidding), meetup records, marketplace disclaimer in responses/meta, no payment handling.
+- [ ] Admin (Jinja2): KYC moderation, bookings oversight, marketplace moderation, feature flags, audit trails, backup triggers.
+- [ ] AI micro-app: read-only FAQs/DB query tools (allowlist), no writes.
+- [ ] API quality: pydantic validation, clear 4xx errors, pagination/filtering, Postman/cURL collection, OpenAPI docs.
+- [ ] Resilience: retry-friendly endpoints, idempotency tokens where needed, background jobs for media compression and audit/export.
+
+## Agent-F (Frontend Lead - "Flutter, Fail-Gracefully")
+Mission: Flutter app with robust offline/low-bandwidth behavior and clear disclaimers.
+
+To-Do (initial)
+- [ ] Project setup: Dio client with retry/backoff, Riverpod/BLoC, envs (demo/stage/prod), PKR display + Asia/Karachi awareness.
+- [ ] Auth flows: email OTP -> JWT, role-aware navigation/guards, session refresh, error states.
+- [ ] Feature A: trip/request creation, booking flow, escrow awareness UI, QR/OTP handover screen, receipt capture, traveler verification upload, ratings.
+- [ ] Feature B: marketplace listing create/update/delete, media upload (camera/gallery) with compression, offer/counter-offer UI (no bidding), mandatory marketplace disclaimer.
+- [ ] Messaging threads between users (requests + marketplace), safe rendering, unread badges.
+- [ ] Offline tolerance: action queue with retry, cached reads, graceful empty/error states; low-bandwidth toggles.
+- [ ] Device capabilities: GPS capture for trips/handovers, QR scanner integration, file picker, gallery/camera permissions UX.
+- [ ] QA/build: widget/integration tests for core flows, APK builds for testing/demo/staging; crash/error logging hooks.
+
+## Sprint Schedule (6 sprints, 1 week each; start 2025-11-22)
+- Sprint 1 (Nov 22-Nov 28): Repo scaffolds (backend + Flutter), full frontend with each page ready, env/config, auth skeletons, logging/audit baseline.
+- Sprint 2 (Nov 29-Dec 5): Data models/migrations; Feature A core API + booking state machine; Flutter Feature A forms and flows (happy path).
+- Sprint 3 (Dec 6-Dec 12): Escrow logic (backend), QR/OTP handover, media upload/compression, offline queue foundations.
+- Sprint 4 (Dec 13-Dec 19): Feature B marketplace endpoints + offer/counter-offer; Flutter marketplace screens with disclaimer; messaging MVP.
+- Sprint 5 (Dec 20-Dec 26): Admin Jinja2 panel (KYC, moderation, feature flags), AI read-only micro-app, Postman/cURL collection; Flutter polish, error states, retries.
+- Sprint 6 (Dec 27-Jan 2): Hardening: validation, security reviews, backups, analytics/logging, tests (unit/integration), APKs for demo/stage, QA matrix update.
+
+## Decisions & Notes
+- Treat ShareGo Report 2 (2025-10-17) as latest authoritative. Proposal supports context.
+- Backend docx not present; log and adjust if surfaced later.
+- Constraints embedded into both agents' tasks (PKR, low-bandwidth, disclaimers, security).
+
+## Next Steps
+- Kick off Sprint 1: refine backlog with agents, set env files and base repos, confirm media storage (local vs MinIO) and audit schema.
+- Sprint 1 kickoff checklist:
+  - [x] Decide media backend (default local `./media/`; optional MinIO config).
+  - [x] Define `.env` templates for backend (PKR, Asia/Karachi, JWT, SMTP for OTP, DB path) and Flutter (API base URLs per env).
+  - [x] Stub FastAPI structure (routers: auth, users, trips, requests, bookings, escrow, listings, offers, messages, reviews; admin Jinja2).
+  - [x] Stub Flutter project with Dio + Riverpod/BLoC wiring, retry policy, global error handler, and PKR formatter.
+
+## Sprint 1 Progress (2025-11-21)
+- Created base directories: `server/` (backend) and `mobile/` (Flutter).
+- Added env templates: `server/.env.example` (PKR, Asia/Karachi, JWT, OTP SMTP, media/MinIO, feature flags) and `mobile/.env.example` (API base URLs, offline/AI toggles).
+- Added scaffold readmes: `server/README.md` and `mobile/README.md` describing setup intent and assumptions.
+- Added developer `.env` for Flutter pointing to localhost dev API.
+- Stubbed FastAPI app factory with health check and router placeholders (`server/app/main.py`, `server/app/routers/__init__.py`).
+- Stubbed Flutter entrypoint (`mobile/lib/main.dart`) with placeholder UI to be replaced with Dio/Riverpod wiring.
+- Added backend settings loader (`server/app/core/config.py`) and package init.
+- Added backend requirements (`server/requirements.txt`) pinned for Python 3.10, installed deps.
+- Added backend health route via `app/api/routes/health.py`, DI helper `app/api/deps.py`, and health test (`server/tests/test_health.py`); test run locally: `200 {'status': 'ok', 'env': 'dev', 'timezone': 'Asia/Karachi', 'currency': 'PKR'}`.
+- Added request logging middleware and ensured media root autocreated on startup (`server/app/main.py`).
+- Added router aggregator and dev auth stubs (`/auth/register`, `/auth/verify-otp`) with sanity checks for 200/400 flows.
+- Split Flutter entrypoint (`mobile/lib/app.dart`, `mobile/lib/main.dart`) and updated mobile README for dev env usage.
+- Added Flutter env loader (`mobile/lib/config/env.dart`) and minimal `pubspec.yaml` with `flutter_dotenv` dependency and `.env` asset.
+- Added backend auth tests (`server/tests/test_auth.py`) and pytest config; tests pass via `PYTEST_DISABLE_PLUGIN_AUTOLOAD=1 python -m pytest -q`.
+- Mounted media route using `StaticFiles`, configured logging formatter/level in app factory; reran tests (3 passed).
+- Implemented JWT issuance in auth verify using `python-jose`; added security helper (`app/core/security.py`) and token claim assertions in tests.
+- Added in-memory OTP service with hashing/expiry/attempt tracking (`app/services/otp.py`); auth routes now issue hashed OTP (dev echoes), verify checks TTL and attempts. Added OTP TTL to config/env. Tests still passing.
+- Mobile: added Dio client with retry interceptor (`mobile/lib/core/api_client.dart`), wired env config into app, updated `pubspec.yaml` with dio/dio_smart_retry, and surface dev API base URL in placeholder screen.
+- Media strategy locked: default local `./media/` mounted at `/media`; MinIO stays optional/configurable; static mount can be added later if needed.
+- Added SQLite persistence with SQLModel (`app/db.py`, `app/models.py`), startup `init_db`, and OTP persistence (OTPEntry) + user record creation on register; JWT now uses roles from stored user. Tests updated and passing (with plugin autoload disabled).
+- Added schema stubs for users/trips (`app/schemas.py`), routes for users and trips (`/users`, `/trips`), and Trip model.
+- Mobile auth wiring: added `AuthService` using Dio with retry/error mapping; placeholder screen can request OTP (dev) and shows API base. Updated pubspec with dio/dio_smart_retry.
+- Added router aggregator (`app/api/routes/__init__.py`) and dev auth stubs (`/auth/register`, `/auth/verify-otp`) for local testing; quick sanity calls returning 200/400 as expected.
+
+## Sprint 1 Remaining To-Dos (Backend)
+- [x] Enforce JWT auth dependency and current-user retrieval (replace `user_id=1` placeholder).
+- [x] KYC stubs: schemas/routes and DB model placeholder.
+- [x] Additional router stubs: requests, bookings, escrow, listings/offers/meetups, messages, reviews (even minimal 501s to define contract).
+- [x] Admin placeholder route (Jinja2 hook) reserved.
+- [x] Seed script for dev/demo users & trips.
+- [ ] Note/test warning cleanup: httpx TestClient deprecation, FastAPI on_event deprecation (switch to lifespan later).
+
+## Sprint 1 Remaining To-Dos (Frontend)
+- [x] Token storage + Dio auth interceptor (Authorization header, handle 401).
+- [x] Auth UI: email submit + OTP entry screens with retry/error surfaces.
+- [x] State management scaffold (Riverpod/BLoC) for auth/session.
+- [ ] Global snackbar/error handler; connectivity/retry banner placeholder.
+- [x] Base navigation shell/layout (minimal placeholder screen).
