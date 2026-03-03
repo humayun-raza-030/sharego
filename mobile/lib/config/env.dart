@@ -4,6 +4,9 @@ class EnvConfig {
   final String apiBaseUrlDev;
   final String apiBaseUrlStage;
   final String apiBaseUrlProd;
+
+  /// Active API base URL (uses dev URL, which is the default for all environments).
+  String get apiBaseUrl => apiBaseUrlDev;
   final bool enableLogging;
   final bool enableOfflineQueue;
   final bool enableAiChat;

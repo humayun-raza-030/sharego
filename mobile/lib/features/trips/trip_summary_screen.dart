@@ -1,11 +1,70 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class TripSummaryScreen extends StatelessWidget {
+import '../../core/app_theme.dart';
+import '../../core/kyc_error_handler.dart';
+import '../../core/providers.dart';
+import '../common/widgets.dart';
+import 'trip_draft.dart';
+
+class TripSummaryScreen extends ConsumerStatefulWidget {
   const TripSummaryScreen({super.key});
 
   @override
+  ConsumerState<TripSummaryScreen> createState() => _TripSummaryScreenState();
+}
+
+class _TripSummaryScreenState extends ConsumerState<TripSummaryScreen> {
+  bool _submitting = false;
+
+  Future<void> _publishTrip() async {
+    final draft = ref.read(tripDraftProvider);
+    final capacity = double.tryParse(draft.capacityKg);
+    final fee = double.tryParse(draft.feePerKg);
+    if (draft.flightDate == null || capacity == null || capacity <= 0) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Flight date and capacity are required.')),
+      );
+      return;
+    }
+
+    setState(() => _submitting = true);
+    try {
+      final tripService = ref.read(tripServiceProvider);
+      final created = await tripService.createTrip(
+        originAirport: draft.originAirport,
+        destinationAirport: draft.destinationAirport,
+        flightDate: draft.flightDate!,
+        capacityKg: capacity,
+        feePkr: fee?.round(),
+        flightNumber: draft.flightNumber,
+        airline: draft.airline,
+      );
+      final createdTripId = created['id'] as int?;
+      if (createdTripId != null) {
+        ref.read(tripDraftProvider.notifier).setCreatedTripId(createdTripId);
+      }
+      if (!mounted) return;
+      context.go('/trip/new/success', extra: created);
+    } catch (e) {
+      if (!mounted) return;
+      if (isKycError(e)) {
+        showKycRequiredDialog(context);
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(e.toString().replaceFirst('Exception: ', ''))),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final draft = ref.watch(tripDraftProvider);
+    final feeText = draft.feePerKg.isEmpty ? '-' : draft.feePerKg;
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -16,6 +75,13 @@ class TripSummaryScreen extends StatelessWidget {
           onPressed: () => context.pop(),
         ),
         title: const Text('Review & publish'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(0),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('Step 3 of 3', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          ),
+        ),
       ),
       body: Padding(
         padding: const EdgeInsets.fromLTRB(20, 4, 20, 30),
@@ -24,38 +90,26 @@ class TripSummaryScreen extends StatelessWidget {
           children: [
             _SummaryCard(
               title: 'Route',
-              subtitle: 'LHE → RUH',
-              trailing: '27 Oct 2025',
+              subtitle: '${draft.originAirport} -> ${draft.destinationAirport}',
+              trailing: draft.flightDate == null
+                  ? null
+                  : '${draft.flightDate!.day}/${draft.flightDate!.month}/${draft.flightDate!.year}',
             ),
             const SizedBox(height: 12),
             _SummaryCard(
               title: 'Capacity',
-              subtitle: '6 kg available • Rs. 1,500 per kg',
+              subtitle: '${draft.capacityKg.isEmpty ? '-' : draft.capacityKg} kg available - Rs. $feeText per kg',
             ),
             const SizedBox(height: 12),
             _SummaryCard(
               title: 'Traveler',
-              subtitle: 'Humayun Raza • CNIC verified • +92 300 1234567',
+              subtitle: '${draft.travelerName.isEmpty ? 'N/A' : draft.travelerName} - ${draft.travelerPhone.isEmpty ? 'No phone' : draft.travelerPhone}',
             ),
             const Spacer(),
-            SizedBox(
-              width: double.infinity,
-              height: 52,
-              child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
-                onPressed: () => context.go('/trip/new/under-review'),
-                child: const Text(
-                  'Publish Trip',
-                  style: TextStyle(
-                    fontSize: 17,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
+            LoadingButton(
+              onPressed: _publishTrip,
+              label: 'Publish Trip',
+              isLoading: _submitting,
             ),
           ],
         ),
@@ -78,7 +132,7 @@ class _SummaryCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8FC),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE0E2EB)),
       ),
@@ -112,3 +166,4 @@ class _SummaryCard extends StatelessWidget {
     );
   }
 }
+

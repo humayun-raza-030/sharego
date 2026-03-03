@@ -10,7 +10,7 @@ class MockData {
 
   static final trips = [
     {
-      'id': 'trip1',
+      'id': '1',
       'traveler': 'Humayun Raza',
       'rating': 4.6,
       'reviews': 1344,
@@ -23,7 +23,7 @@ class MockData {
       'userBudget': 'Rs. 80,000',
     },
     {
-      'id': 'trip2',
+      'id': '2',
       'traveler': 'Haider Goraya',
       'rating': 4.3,
       'reviews': 765,
@@ -40,7 +40,7 @@ class MockData {
   static final bookings = [
     {
       'id': 'BKG-12345',
-      'tripId': 'trip1',
+      'tripId': '1',
       'status': 'HOLD',
       'timeline': [
         {'title': 'Booking Created', 'subtitle': 'Hold placed', 'time': 'Today 10:00'},
@@ -154,7 +154,7 @@ class MockData {
 
   static List<String> get cities => ['Lahore', 'Karachi', 'Islamabad'];
 
-  static Color get accent => Colors.teal;
+  static Color get accent => Colors.blue;
 
   static bool offline = false;
 }

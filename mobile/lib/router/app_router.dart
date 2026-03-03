@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../features/auth/auth_screens.dart';
+import '../features/auth/profile_setup_screen.dart';
 import '../features/home/home_screen.dart';
 import '../features/booking/booking_date_screen.dart';
 import '../features/booking/booking_traveler_list_screen.dart';
@@ -11,6 +12,7 @@ import '../features/booking/booking_details_form_screen.dart';
 import '../features/booking/booking_review_screen.dart';
 import '../features/booking/booking_success_screen.dart';
 import '../features/booking/booking_timeline_screen.dart';
+import '../features/booking/booking_list_screen.dart';
 import '../features/booking/booking_pickup_otp_screen.dart';
 import '../features/booking/booking_delivery_otp_screen.dart';
 import '../features/booking/booking_under_review_screen.dart';
@@ -22,6 +24,7 @@ import '../features/trips/trip_manage_screen.dart';
 import '../features/trips/trip_edit_screen.dart';
 import '../features/trips/trip_success_screen.dart';
 import '../features/trips/trip_under_review_screen.dart';
+import '../features/onboarding/onboarding_overview_screen.dart';
 import '../features/marketplace/marketplace_list_screen.dart';
 import '../features/marketplace/marketplace_detail_screen.dart';
 import '../features/marketplace/marketplace_create_screen.dart';
@@ -29,17 +32,27 @@ import '../features/marketplace/marketplace_review_screen.dart';
 import '../features/marketplace/marketplace_success_screen.dart';
 import '../features/marketplace/marketplace_offer_thread_screen.dart';
 import '../features/marketplace/marketplace_meetup_screens.dart';
+import '../features/marketplace/marketplace_edit_screen.dart';
 import '../features/marketplace/marketplace_mark_sold_screen.dart';
 import '../features/chat/chat_screens.dart';
 import '../features/audit/audit_screens.dart';
 import '../features/profile/profile_screens.dart';
+import '../features/profile/reviews_screen.dart';
 import '../features/ai/ai_chat_screen.dart';
+import '../features/wallet/wallet_screen.dart';
 import '../features/common/shell.dart';
+import '../core/providers.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final authStorage = ref.watch(authStorageProvider);
+
   return GoRouter(
     initialLocation: '/auth/login',
     routes: [
+      GoRoute(
+        path: '/onboarding',
+        builder: (context, state) => const OnboardingOverviewScreen(),
+      ),
       GoRoute(
         path: '/auth/login',
         builder: (context, state) => const LoginScreen(),
@@ -56,6 +69,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/auth/forgot',
         builder: (context, state) => const ForgotPasswordScreen(),
       ),
+      GoRoute(
+        path: '/auth/profile-setup',
+        builder: (context, state) => const ProfileSetupScreen(),
+      ),
       ShellRoute(
         builder: (context, state, child) => AppShell(child: child),
         routes: [
@@ -63,6 +80,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             path: '/',
             builder: (context, state) => const HomeScreen(),
             routes: [
+              GoRoute(
+                path: 'bookings',
+                builder: (context, state) => const BookingListScreen(),
+              ),
               GoRoute(
                 path: 'book/dates',
                 builder: (context, state) => const BookingDateScreen(),
@@ -160,6 +181,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => const ListingSuccessScreen(),
                   ),
                   GoRoute(
+                    path: ':id/edit',
+                    builder: (context, state) => ListingEditScreen(
+                        id: state.pathParameters['id'] ?? ''),
+                  ),
+                  GoRoute(
                     path: ':id',
                     builder: (context, state) => ListingDetailScreen(
                         id: state.pathParameters['id'] ?? ''),
@@ -226,6 +252,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                     builder: (context, state) => const EditProfileScreen(),
                   ),
                   GoRoute(
+                    path: 'reviews',
+                    builder: (context, state) => const UserReviewsScreen(),
+                  ),
+                  GoRoute(
                     path: 'kyc',
                     builder: (context, state) => const KycScreen(),
                   ),
@@ -240,6 +270,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 ],
               ),
               GoRoute(
+                path: 'wallet',
+                builder: (context, state) => const WalletScreen(),
+              ),
+              GoRoute(
                 path: 'ai',
                 builder: (context, state) => const AiChatScreen(),
               ),
@@ -252,8 +286,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    redirect: (context, state) {
-      // Simple mock auth gate: if logged in flag missing, allow all (demo).
+    redirect: (context, state) async {
+      final token = await authStorage.loadToken();
+      final isLoggedIn = token != null && token.isNotEmpty;
+      final isAuthRoute = state.matchedLocation.startsWith('/auth');
+      final isOnboarding = state.matchedLocation == '/onboarding';
+
+      // Allow onboarding without auth.
+      if (isOnboarding) return null;
+
+      // Not logged in and trying to access protected route → send to login.
+      if (!isLoggedIn && !isAuthRoute) return '/auth/login';
+
+      // Logged in and on an auth route (except profile-setup) → send to home.
+      if (isLoggedIn && isAuthRoute && state.matchedLocation != '/auth/profile-setup') return '/';
+
       return null;
     },
     errorBuilder: (context, state) => Scaffold(

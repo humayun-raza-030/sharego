@@ -1,12 +1,23 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-class TripSuccessScreen extends StatelessWidget {
+import '../../core/app_theme.dart';
+import 'trip_draft.dart';
+
+class TripSuccessScreen extends ConsumerWidget {
   const TripSuccessScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
+    final extra = GoRouterState.of(context).extra as Map<String, dynamic>?;
+    final draft = ref.watch(tripDraftProvider);
+    final tripId = extra?['id']?.toString() ?? draft.createdTripId?.toString() ?? 'N/A';
+    final route = '${draft.originAirport} -> ${draft.destinationAirport}';
+    final capacity = '${draft.capacityKg.isEmpty ? '-' : draft.capacityKg} kg - Rs. ${draft.feePerKg.isEmpty ? '-' : draft.feePerKg}/kg';
+
     return Scaffold(
       backgroundColor: Colors.white,
       body: SafeArea(
@@ -18,22 +29,21 @@ class TripSuccessScreen extends StatelessWidget {
               Container(
                 width: 96,
                 height: 96,
-                decoration: const BoxDecoration(
-                  color: Color(0xFFEAF1FF),
+                decoration: BoxDecoration(
+                  color: AppTheme.amber.withValues(alpha: 0.12),
                   shape: BoxShape.circle,
                 ),
-                child:
-                    const Icon(Icons.check_circle, size: 72, color: Color(0xFF2E78F0)),
+                child: Icon(Icons.hourglass_top_rounded, size: 72, color: AppTheme.amber),
               ),
               const SizedBox(height: 16),
               Text(
-                'Trip Published',
+                'Trip Submitted',
                 style: theme.textTheme.titleLarge
                     ?.copyWith(fontWeight: FontWeight.w800),
               ),
               const SizedBox(height: 6),
               Text(
-                'Your trip is live. Travelers can now book against your capacity.',
+                'Your trip is under review. You\'ll be notified once an admin approves it.',
                 style: theme.textTheme.bodyMedium,
                 textAlign: TextAlign.center,
               ),
@@ -41,17 +51,39 @@ class TripSuccessScreen extends StatelessWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7F8FC),
+                  color: AppTheme.surface,
                   borderRadius: BorderRadius.circular(12),
                   border: Border.all(color: const Color(0xFFE0E2EB)),
                 ),
                 child: Column(
-                  children: const [
-                    _Row(label: 'Trip ID', value: 'TRIP-001'),
-                    SizedBox(height: 8),
-                    _Row(label: 'Route', value: 'LHE → RUH'),
-                    SizedBox(height: 8),
-                    _Row(label: 'Capacity', value: '6 kg • Rs. 1,500/kg'),
+                  children: [
+                    GestureDetector(
+                      onTap: () {
+                        Clipboard.setData(ClipboardData(text: tripId));
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(content: Text('Trip ID copied!')),
+                        );
+                      },
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text('Trip ID',
+                              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w700)),
+                          Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              Text(tripId, style: theme.textTheme.bodyMedium),
+                              const SizedBox(width: 4),
+                              const Icon(Icons.copy, size: 14, color: Colors.black45),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    _Row(label: 'Route', value: route),
+                    const SizedBox(height: 8),
+                    _Row(label: 'Capacity', value: capacity),
                   ],
                 ),
               ),
@@ -67,7 +99,9 @@ class TripSuccessScreen extends StatelessWidget {
                   const SizedBox(width: 10),
                   Expanded(
                     child: ElevatedButton(
-                      onPressed: () => context.go('/trip/trip1'),
+                      onPressed: tripId == 'N/A'
+                          ? null
+                          : () => context.go('/trip/$tripId'),
                       child: const Text('View Trip'),
                     ),
                   ),
@@ -105,3 +139,4 @@ class _Row extends StatelessWidget {
     );
   }
 }
+

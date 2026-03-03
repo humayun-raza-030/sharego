@@ -1,32 +1,141 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-class TripFlightScreen extends StatefulWidget {
+import '../../core/app_theme.dart';
+import '../../core/kyc_error_handler.dart';
+import '../../core/providers.dart';
+import '../common/airline_search_field.dart';
+import '../common/airport_search_field.dart';
+import '../common/coach.dart';
+import '../common/widgets.dart';
+import 'trip_draft.dart';
+
+class TripFlightScreen extends ConsumerStatefulWidget {
   const TripFlightScreen({super.key});
 
   @override
-  State<TripFlightScreen> createState() => _TripFlightScreenState();
+  ConsumerState<TripFlightScreen> createState() => _TripFlightScreenState();
 }
 
-class _TripFlightScreenState extends State<TripFlightScreen> {
-  final _countries = const ['Pakistan', 'UAE', 'Saudi Arabia'];
-  final _airlines = const ['Saudia', 'PIA', 'Emirates'];
-  final _airportsFrom = const ['LHE', 'KHI', 'ISB'];
-  final _airportsTo = const ['RUH', 'DXB', 'JED'];
-
+class _TripFlightScreenState extends ConsumerState<TripFlightScreen> {
   String _country = 'Pakistan';
-  String _airline = 'Saudia';
   String _fromCode = 'LHE';
   String _toCode = 'RUH';
+  String _airlineName = '';
+  String _airlineIata = '';
   DateTime _flightDate = DateTime.now();
+  bool _locationDetected = false;
 
+  String? _formError;
   final _ticketCtrl = TextEditingController();
+  final _flightNumberCtrl = TextEditingController();
+  final _routeKey = GlobalKey();
+  final _fromKey = GlobalKey();
+  final _toKey = GlobalKey();
+  final _dateKey = GlobalKey();
+  final _continueKey = GlobalKey();
+
+  @override
+  void initState() {
+    super.initState();
+    final draft = ref.read(tripDraftProvider);
+    _country = draft.country;
+    _fromCode = draft.originAirport;
+    _toCode = draft.destinationAirport;
+    _flightDate = draft.flightDate ?? DateTime.now();
+    _ticketCtrl.text = draft.eticketUrl;
+    _airlineName = draft.airline;
+    _flightNumberCtrl.text = draft.flightNumber;
+    // Try to resolve airline IATA from name for initial selection.
+    final airlineRepo = ref.read(airlineRepositoryProvider);
+    final results = airlineRepo.search(draft.airline, limit: 1);
+    if (results.isNotEmpty && results.first.name == draft.airline) {
+      _airlineIata = results.first.iata;
+    }
+    _detectLocation();
+    _checkKycStatus();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Coach.show(
+        context,
+        storageKey: 'has_seen_trip_flight_guide',
+        steps: [
+          CoachStep(
+            targetKey: _routeKey,
+            title: 'Route & airline',
+            body: 'Pick your airline and country.',
+          ),
+          CoachStep(
+            targetKey: _fromKey,
+            title: 'From airport',
+            body: 'Search and choose your origin airport.',
+          ),
+          CoachStep(
+            targetKey: _toKey,
+            title: 'To airport',
+            body: 'Search and choose your destination airport.',
+          ),
+          CoachStep(
+            targetKey: _dateKey,
+            title: 'Flight date',
+            body: 'Set when you fly.',
+          ),
+          CoachStep(
+            targetKey: _continueKey,
+            title: 'Continue',
+            body: 'Go next to add capacity & publish.',
+          ),
+        ],
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _ticketCtrl.dispose();
+    _flightNumberCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _checkKycStatus() async {
+    try {
+      final profile = await ref.read(profileServiceProvider).getMe();
+      if (!mounted) return;
+      final kycStatus = profile['kyc_status']?.toString() ?? 'pending';
+      if (kycStatus != 'approved') {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (mounted) showKycRequiredDialog(context);
+        });
+      }
+    } catch (_) {
+      // Don't block on failure — the server will enforce anyway
+    }
+  }
+
+  Future<void> _detectLocation() async {
+    final locationService = ref.read(locationServiceProvider);
+    final position = await locationService.getCurrentPosition();
+    if (position == null || !mounted) return;
+
+    final airportRepo = ref.read(airportRepositoryProvider);
+    final nearest = airportRepo.nearestTo(position.latitude, position.longitude);
+    if (nearest == null || !mounted) return;
+
+    if (!_locationDetected && _fromCode == ref.read(tripDraftProvider).originAirport) {
+      setState(() {
+        _fromCode = nearest.iata;
+        _locationDetected = true;
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     final dateLabel = DateFormat('EEE, dd MMM yyyy').format(_flightDate);
+    final airportRepo = ref.watch(airportRepositoryProvider);
+    final airlineRepo = ref.watch(airlineRepositoryProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -38,6 +147,51 @@ class _TripFlightScreenState extends State<TripFlightScreen> {
         ),
         backgroundColor: Colors.white,
         title: const Text('Trip setup'),
+        bottom: PreferredSize(
+          preferredSize: const Size.fromHeight(0),
+          child: Padding(
+            padding: const EdgeInsets.only(bottom: 8),
+            child: Text('Step 1 of 3', style: TextStyle(fontSize: 12, color: AppTheme.textSecondary)),
+          ),
+        ),
+        actions: [
+          IconButton(
+            tooltip: 'Help',
+            icon: const Icon(Icons.help_outline, color: Colors.black87),
+            onPressed: () => Coach.show(
+              context,
+              force: true,
+              storageKey: 'has_seen_trip_flight_guide',
+              steps: [
+                CoachStep(
+                  targetKey: _routeKey,
+                  title: 'Route & airline',
+                  body: 'Pick your airline and country.',
+                ),
+                CoachStep(
+                  targetKey: _fromKey,
+                  title: 'From airport',
+                  body: 'Search and choose your origin airport.',
+                ),
+                CoachStep(
+                  targetKey: _toKey,
+                  title: 'To airport',
+                  body: 'Search and choose your destination airport.',
+                ),
+                CoachStep(
+                  targetKey: _dateKey,
+                  title: 'Flight date',
+                  body: 'Set when you fly.',
+                ),
+                CoachStep(
+                  targetKey: _continueKey,
+                  title: 'Continue',
+                  body: 'Go next to add capacity & publish.',
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.fromLTRB(20, 0, 20, 30),
@@ -45,55 +199,51 @@ class _TripFlightScreenState extends State<TripFlightScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _SectionCard(
+              key: _routeKey,
               title: 'Route & airline',
               children: [
-                _FieldLabel('Country'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _Drop(
-                        value: _country,
-                        items: _countries,
-                        onChanged: (v) =>
-                            setState(() => _country = v ?? _country),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: _Drop(
-                        value: _airline,
-                        items: _airlines,
-                        onChanged: (v) =>
-                            setState(() => _airline = v ?? _airline),
-                      ),
-                    ),
-                  ],
+                _FieldLabel('From airport'),
+                SizedBox(
+                  key: _fromKey,
+                  child: AirportSearchField(
+                    repository: airportRepo,
+                    initialIata: _fromCode,
+                    label: 'Origin',
+                    onSelected: (airport) {
+                      setState(() {
+                        _fromCode = airport.iata;
+                      });
+                    },
+                  ),
                 ),
                 const SizedBox(height: 12),
-                _FieldLabel('Airports'),
-                Row(
-                  children: [
-                    Expanded(
-                      child: _Drop(
-                        value: _fromCode,
-                        items: _airportsFrom,
-                        onChanged: (v) =>
-                            setState(() => _fromCode = v ?? _fromCode),
-                      ),
-                    ),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 8.0),
-                      child: Icon(Icons.arrow_forward, color: Colors.black54),
-                    ),
-                    Expanded(
-                      child: _Drop(
-                        value: _toCode,
-                        items: _airportsTo,
-                        onChanged: (v) =>
-                            setState(() => _toCode = v ?? _toCode),
-                      ),
-                    ),
-                  ],
+                _FieldLabel('To airport'),
+                SizedBox(
+                  key: _toKey,
+                  child: AirportSearchField(
+                    repository: airportRepo,
+                    initialIata: _toCode,
+                    label: 'Destination',
+                    onSelected: (airport) {
+                      setState(() {
+                        _toCode = airport.iata;
+                        _country = airport.country;
+                      });
+                    },
+                  ),
+                ),
+                const SizedBox(height: 12),
+                _FieldLabel('Airline'),
+                AirlineSearchField(
+                  repository: airlineRepo,
+                  initialIata: _airlineIata.isNotEmpty ? _airlineIata : null,
+                  label: 'Airline',
+                  onSelected: (airline) {
+                    setState(() {
+                      _airlineName = airline.name;
+                      _airlineIata = airline.iata;
+                    });
+                  },
                 ),
               ],
             ),
@@ -101,6 +251,13 @@ class _TripFlightScreenState extends State<TripFlightScreen> {
             _SectionCard(
               title: 'Flight information',
               children: [
+                _FieldLabel('Flight number'),
+                TextField(
+                  controller: _flightNumberCtrl,
+                  decoration: _input('e.g. SV735'),
+                  textCapitalization: TextCapitalization.characters,
+                ),
+                const SizedBox(height: 14),
                 _FieldLabel('E-ticket URL'),
                 TextField(
                   controller: _ticketCtrl,
@@ -110,6 +267,7 @@ class _TripFlightScreenState extends State<TripFlightScreen> {
                 const SizedBox(height: 14),
                 _FieldLabel('Date of flight'),
                 Card(
+                  key: _dateKey,
                   color: const Color(0xFFF7F8FC),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
@@ -153,17 +311,50 @@ class _TripFlightScreenState extends State<TripFlightScreen> {
                 ),
               ],
             ),
+            if (_formError != null) ...[
+              const SizedBox(height: 12),
+              ErrorBanner(_formError!),
+            ],
             const SizedBox(height: 24),
             SizedBox(
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
+                key: _continueKey,
                 style: ElevatedButton.styleFrom(
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
                 ),
-                onPressed: () => context.push('/trip/new/capacity'),
+                onPressed: () {
+                  if (_fromCode == _toCode) {
+                    setState(() => _formError = 'Origin and destination cannot be the same.');
+                    return;
+                  }
+                  if (_airlineName.isEmpty) {
+                    setState(() => _formError = 'Please select an airline.');
+                    return;
+                  }
+                  if (_flightNumberCtrl.text.trim().isEmpty) {
+                    setState(() => _formError = 'Flight number is required.');
+                    return;
+                  }
+                  if (_ticketCtrl.text.trim().isEmpty) {
+                    setState(() => _formError = 'E-ticket URL is required.');
+                    return;
+                  }
+                  setState(() => _formError = null);
+                  ref.read(tripDraftProvider.notifier).updateFlight(
+                        country: _country,
+                        airline: _airlineName,
+                        originAirport: _fromCode,
+                        destinationAirport: _toCode,
+                        flightDate: _flightDate,
+                        eticketUrl: _ticketCtrl.text,
+                        flightNumber: _flightNumberCtrl.text.trim(),
+                      );
+                  context.push('/trip/new/capacity');
+                },
                 child: const Text(
                   'Continue',
                   style: TextStyle(fontSize: 17, fontWeight: FontWeight.w600),
@@ -186,13 +377,13 @@ class _TripFlightScreenState extends State<TripFlightScreen> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFF2E78F0), width: 1.4),
+          borderSide: const BorderSide(color: AppTheme.primary, width: 1.4),
         ),
       );
 }
 
 class _SectionCard extends StatelessWidget {
-  const _SectionCard({required this.title, required this.children});
+  const _SectionCard({super.key, required this.title, required this.children});
   final String title;
   final List<Widget> children;
 
@@ -203,7 +394,7 @@ class _SectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8FC),
+        color: AppTheme.surface,
         borderRadius: BorderRadius.circular(12),
         border: Border.all(color: const Color(0xFFE0E2EB)),
       ),
@@ -237,40 +428,6 @@ class _FieldLabel extends StatelessWidget {
         text,
         style: const TextStyle(
             fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black87),
-      ),
-    );
-  }
-}
-
-class _Drop extends StatelessWidget {
-  const _Drop({
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  final String value;
-  final List<String> items;
-  final ValueChanged<String?> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 40,
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: const Color(0xFFE0E2EB)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          items: items
-              .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-              .toList(),
-          onChanged: onChanged,
-        ),
       ),
     );
   }

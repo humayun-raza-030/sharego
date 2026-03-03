@@ -1,50 +1,183 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
-import '../../core/mock_data.dart';
+import '../../core/app_theme.dart';
+import '../../core/providers.dart';
+import '../common/airport_search_field.dart';
+import '../common/coach.dart';
+import '../common/widgets.dart';
+import 'booking_draft.dart';
 
-class BookingDateScreen extends StatefulWidget {
+class BookingDateScreen extends ConsumerStatefulWidget {
   const BookingDateScreen({super.key});
 
   @override
-  State<BookingDateScreen> createState() => _BookingDateScreenState();
+  ConsumerState<BookingDateScreen> createState() => _BookingDateScreenState();
 }
 
-class _BookingDateScreenState extends State<BookingDateScreen> {
-  final _fromCities = const ['Lahore', 'Karachi', 'Islamabad'];
-  final _toCities = const ['Riyadh', 'Dubai', 'Jeddah'];
-
-  String _from = 'Lahore';
-  String _to = 'Riyadh';
+class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
+  String _from = 'LHE';
+  String _to = 'RUH';
   double _weight = 5;
+  bool _locationDetected = false;
 
   late DateTime _selectedDate;
+
+  List<Map<String, dynamic>> _trips = [];
+  bool _tripsLoading = true;
+  String? _tripsError;
+
+  Timer? _debounceTimer;
+
+  final _dateKey = GlobalKey();
+  final _fromKey = GlobalKey();
+  final _toKey = GlobalKey();
+  final _weightKey = GlobalKey();
+  final _travelerCardKey = GlobalKey();
 
   @override
   void initState() {
     super.initState();
-    final now = DateTime.now();
-    _selectedDate = DateTime(now.year, now.month, now.day);
+    final draft = ref.read(bookingDraftProvider);
+    _from = draft.fromCity;
+    _to = draft.toCity;
+    _weight = draft.weightKg;
+    _selectedDate = DateTime(
+      draft.selectedDate.year,
+      draft.selectedDate.month,
+      draft.selectedDate.day,
+    );
+    _searchTrips();
+    _detectLocation();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      Coach.show(
+        context,
+        storageKey: 'has_seen_book_screen_guide',
+        steps: [
+          CoachStep(
+            targetKey: _fromKey,
+            title: 'Choose route',
+            body: 'Search and select your origin airport.',
+          ),
+          CoachStep(
+            targetKey: _toKey,
+            title: 'Pick destination',
+            body: 'Search where the item should go.',
+          ),
+          CoachStep(
+            targetKey: _dateKey,
+            title: 'Travel date',
+            body: 'Pick when the traveler is flying.',
+          ),
+          CoachStep(
+            targetKey: _weightKey,
+            title: 'Weight & budget',
+            body: 'Set item weight in kg for matching.',
+          ),
+          CoachStep(
+            targetKey: _travelerCardKey,
+            title: 'Traveler options',
+            body: 'Tap a traveler to send your request.',
+          ),
+        ],
+      );
+    });
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _searchTrips() async {
+    setState(() {
+      _tripsLoading = true;
+      _tripsError = null;
+    });
+    try {
+      final result = await ref.read(tripServiceProvider).searchTrips(
+        origin: _from,
+        dest: _to,
+        minCapacity: _weight,
+        dateFrom: _selectedDate,
+        dateTo: _selectedDate.add(const Duration(days: 3)),
+      );
+      if (mounted) setState(() { _trips = result; _tripsLoading = false; });
+    } catch (e) {
+      if (mounted) setState(() {
+        _tripsError = e.toString().replaceFirst('Exception: ', '');
+        _tripsLoading = false;
+      });
+    }
+  }
+
+  void _debouncedSearch() {
+    _debounceTimer?.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), _searchTrips);
+  }
+
+  Future<void> _detectLocation() async {
+    final locationService = ref.read(locationServiceProvider);
+    final position = await locationService.getCurrentPosition();
+    if (position == null || !mounted) return;
+
+    final airportRepo = ref.read(airportRepositoryProvider);
+    final nearest = airportRepo.nearestTo(position.latitude, position.longitude);
+    if (nearest == null || !mounted) return;
+
+    if (!_locationDetected && _from == ref.read(bookingDraftProvider).fromCity) {
+      setState(() {
+        _from = nearest.iata;
+        _locationDetected = true;
+      });
+      ref.read(bookingDraftProvider.notifier).updateSearch(
+            fromCity: _from,
+            toCity: _to,
+            selectedDate: _selectedDate,
+            weightKg: _weight,
+          );
+      _searchTrips();
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final trips = MockData.trips;
     final dateLabel = DateFormat('EEE, dd MMM yyyy').format(_selectedDate);
+    final airportRepo = ref.watch(airportRepositoryProvider);
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios_new, color: AppTheme.textPrimary),
           onPressed: () => context.pop(),
         ),
         backgroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.share, color: Colors.black87),
+            tooltip: 'Help',
+            icon: Icon(Icons.help_outline, color: AppTheme.textPrimary),
+            onPressed: () => Coach.show(
+              context,
+              force: true,
+              storageKey: 'has_seen_book_screen_guide',
+              steps: [
+                CoachStep(targetKey: _fromKey, title: 'Choose route', body: 'Search and select your origin airport.'),
+                CoachStep(targetKey: _toKey, title: 'Pick destination', body: 'Search where the item should go.'),
+                CoachStep(targetKey: _dateKey, title: 'Travel date', body: 'Pick when the traveler is flying.'),
+                CoachStep(targetKey: _weightKey, title: 'Weight & budget', body: 'Set item weight in kg for matching.'),
+                CoachStep(targetKey: _travelerCardKey, title: 'Traveler options', body: 'Tap a traveler to send your request.'),
+              ],
+            ),
+          ),
+          IconButton(
+            icon: Icon(Icons.share, color: AppTheme.textPrimary),
             onPressed: () {},
           ),
         ],
@@ -55,17 +188,17 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Text(
+              Text(
                 'Enter the Date:',
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: AppTheme.textPrimary,
                 ),
               ),
               const SizedBox(height: 8),
               Card(
-                color: const Color(0xFFF4F5F8),
+                color: AppTheme.surface,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 child: Padding(
@@ -94,7 +227,8 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
                       SizedBox(
                         height: 40,
                         child: ElevatedButton(
-                          onPressed: () async {
+                          key: _dateKey,
+                          onPressed: _tripsLoading ? null : () async {
                             final now = DateTime.now();
                             final picked = await showDatePicker(
                               context: context,
@@ -108,10 +242,16 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
                               setState(() {
                                 _selectedDate = picked;
                               });
+                              ref.read(bookingDraftProvider.notifier).updateSearch(
+                                    fromCity: _from,
+                                    toCity: _to,
+                                    selectedDate: _selectedDate,
+                                    weightKg: _weight,
+                                  );
+                              _searchTrips();
                             }
                           },
                           style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFF2E78F0),
                             minimumSize: const Size(120, 40),
                             elevation: 0,
                             shape: RoundedRectangleBorder(
@@ -138,8 +278,8 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
                 ),
                 child: Column(
                   children: [
-                    Row(
-                      children: const [
+                    const Row(
+                      children: [
                         Expanded(
                           child: Text(
                             'From:',
@@ -149,6 +289,31 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
                             ),
                           ),
                         ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    SizedBox(
+                      key: _fromKey,
+                      child: AirportSearchField(
+                        repository: airportRepo,
+                        initialIata: _from,
+                        label: 'Origin',
+                        enabled: !_tripsLoading,
+                        onSelected: (airport) {
+                          setState(() => _from = airport.iata);
+                          ref.read(bookingDraftProvider.notifier).updateSearch(
+                                fromCity: _from,
+                                toCity: _to,
+                                selectedDate: _selectedDate,
+                                weightKg: _weight,
+                              );
+                          _searchTrips();
+                        },
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    const Row(
+                      children: [
                         Expanded(
                           child: Text(
                             'To:',
@@ -156,39 +321,29 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
                               fontSize: 13,
                               fontWeight: FontWeight.w600,
                             ),
-                            textAlign: TextAlign.right,
                           ),
                         ),
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _CityDropdown(
-                            value: _from,
-                            items: _fromCities,
-                            onChanged: (val) =>
-                                setState(() => _from = val ?? _from),
-                          ),
-                        ),
-                        const Padding(
-                          padding: EdgeInsets.symmetric(horizontal: 4.0),
-                          child: Icon(
-                            Icons.arrow_forward,
-                            size: 20,
-                            color: Colors.black54,
-                          ),
-                        ),
-                        Expanded(
-                          child: _CityDropdown(
-                            value: _to,
-                            items: _toCities,
-                            onChanged: (val) =>
-                                setState(() => _to = val ?? _to),
-                          ),
-                        ),
-                      ],
+                    SizedBox(
+                      key: _toKey,
+                      child: AirportSearchField(
+                        repository: airportRepo,
+                        initialIata: _to,
+                        label: 'Destination',
+                        enabled: !_tripsLoading,
+                        onSelected: (airport) {
+                          setState(() => _to = airport.iata);
+                          ref.read(bookingDraftProvider.notifier).updateSearch(
+                                fromCity: _from,
+                                toCity: _to,
+                                selectedDate: _selectedDate,
+                                weightKg: _weight,
+                              );
+                          _searchTrips();
+                        },
+                      ),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -215,21 +370,31 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
                           ),
                           child: Text(
                             '${_weight.toStringAsFixed(1)} KG',
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontSize: 13,
-                              color: Colors.black87,
+                              color: AppTheme.textPrimary,
                             ),
                           ),
                         ),
                       ],
                     ),
                     Slider(
+                      key: _weightKey,
                       value: _weight,
                       min: 1,
                       max: 30,
                       divisions: 58,
                       label: '${_weight.toStringAsFixed(1)} kg',
-                      onChanged: (v) => setState(() => _weight = v),
+                      onChanged: _tripsLoading ? null : (v) {
+                        setState(() => _weight = v);
+                        ref.read(bookingDraftProvider.notifier).updateSearch(
+                              fromCity: _from,
+                              toCity: _to,
+                              selectedDate: _selectedDate,
+                              weightKg: _weight,
+                            );
+                      },
+                      onChangeEnd: (_) => _debouncedSearch(),
                     ),
                   ],
                 ),
@@ -238,70 +403,55 @@ class _BookingDateScreenState extends State<BookingDateScreen> {
               const SizedBox(height: 18),
 
               // TRAVELER CARDS
-              ...trips.take(2).map(
-                    (t) => _TravelerCard(
-                      name: t['traveler']?.toString() ?? '',
-                      route: t['route']?.toString() ?? '',
-                      rating: t['rating']?.toString() ?? '4.6',
-                      reviews: t['reviews']?.toString() ?? '1344 reviews',
-                      color: () {
-                        final c = t['color'];
-                        if (c is int) return Color(c);
-                        if (c is String) {
-                          // allow hex strings like '0xFFABCDEF'
-                          return Color(int.tryParse(c) ?? 0xFF9B7BFF);
-                        }
-                        return const Color(0xFF9B7BFF);
-                      }(),
-                      onTap: () => context.push('/book/traveler/${t['id']}'),
-                    ),
-                  ),
+              if (_tripsLoading)
+                const Padding(
+                  padding: EdgeInsets.all(20),
+                  child: SkeletonList(items: 3, itemHeight: 80),
+                )
+              else if (_tripsError != null)
+                Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: ErrorBanner(_tripsError!),
+                )
+              else if (_trips.isEmpty)
+                EmptyState(
+                  icon: Icons.flight_takeoff,
+                  title: 'No travelers found',
+                  subtitle: 'Try different dates or routes',
+                )
+              else
+                ..._trips.take(5).toList().asMap().entries.map(
+                  (entry) {
+                    final t = entry.value;
+                    final origin = t['origin_airport']?.toString() ?? '';
+                    final dest = t['dest_airport']?.toString() ?? '';
+                    final capacityKg = t['capacity_kg']?.toString() ?? '';
+                    final feePkr = t['fee_pkr']?.toString() ?? '';
+                    final airline = t['airline']?.toString() ?? '';
+                    final flightNumber = t['flight_number']?.toString() ?? '';
+                    return _TravelerCard(
+                      key: entry.key == 0 ? _travelerCardKey : null,
+                      name: 'Traveler #${t['user_id'] ?? t['id']}',
+                      route: '$origin → $dest',
+                      rating: '$capacityKg kg',
+                      reviews: 'PKR $feePkr/kg',
+                      color: AppTheme.primary,
+                      airline: airline,
+                      flightNumber: flightNumber,
+                      onTap: () {
+                        ref.read(bookingDraftProvider.notifier).updateSearch(
+                              fromCity: _from,
+                              toCity: _to,
+                              selectedDate: _selectedDate,
+                              weightKg: _weight,
+                            );
+                        context.push('/book/traveler/${t['id']}');
+                      },
+                    );
+                  },
+                ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-}
-
-class _CityDropdown extends StatelessWidget {
-  final String value;
-  final List<String> items;
-  final ValueChanged<String?> onChanged;
-
-  const _CityDropdown({
-    required this.value,
-    required this.items,
-    required this.onChanged,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      height: 38,
-      decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE0E2EB)),
-        color: Colors.white,
-      ),
-      padding: const EdgeInsets.symmetric(horizontal: 8),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<String>(
-          value: value,
-          isExpanded: true,
-          icon: const Icon(Icons.keyboard_arrow_down, size: 18),
-          items: items
-              .map(
-                (e) => DropdownMenuItem(
-                  value: e,
-                  child: Text(
-                    e,
-                    style: const TextStyle(fontSize: 13),
-                  ),
-                ),
-              )
-              .toList(),
-          onChanged: onChanged,
         ),
       ),
     );
@@ -314,15 +464,20 @@ class _TravelerCard extends StatelessWidget {
   final String rating;
   final String reviews;
   final Color color;
+  final String airline;
+  final String flightNumber;
   final VoidCallback onTap;
 
   const _TravelerCard({
+    super.key,
     required this.name,
     required this.route,
     required this.rating,
     required this.reviews,
     required this.color,
     required this.onTap,
+    this.airline = '',
+    this.flightNumber = '',
   });
 
   @override
@@ -344,9 +499,10 @@ class _TravelerCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: color,
+                  color: color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
+                child: Icon(Icons.flight_takeoff, color: color, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -368,25 +524,38 @@ class _TravelerCard extends StatelessWidget {
                         color: Colors.black54,
                       ),
                     ),
+                    if (flightNumber.isNotEmpty) ...[
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          const Icon(Icons.flight, size: 13, color: AppTheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${airline.isNotEmpty ? '$airline ' : ''}$flightNumber',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 4),
                     Row(
                       children: [
                         const Icon(
-                          Icons.star,
+                          Icons.luggage,
                           size: 14,
-                          color: Color(0xFFFFC107),
+                          color: AppTheme.primary,
                         ),
                         const SizedBox(width: 4),
                         Text(
                           rating,
-                          style: const TextStyle(
+                          style: TextStyle(
                             fontSize: 12,
-                            color: Colors.black87,
+                            color: AppTheme.textPrimary,
                           ),
                         ),
-                        const SizedBox(width: 4),
+                        const SizedBox(width: 8),
                         Text(
-                          '($reviews)',
+                          reviews,
                           style: const TextStyle(
                             fontSize: 11,
                             color: Colors.black45,

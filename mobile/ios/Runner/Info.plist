@@ -45,5 +45,7 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>ShareGO uses your location to find the nearest airport and nearby marketplace listings.</string>
 </dict>
 </plist>

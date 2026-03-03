@@ -1,15 +1,49 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/mock_data.dart';
+import '../../core/app_theme.dart';
+import '../../core/providers.dart';
+import '../common/widgets.dart';
+import 'booking_draft.dart';
 
-class TravelerListScreen extends StatelessWidget {
+class TravelerListScreen extends ConsumerStatefulWidget {
   const TravelerListScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    final trips = MockData.trips;
+  ConsumerState<TravelerListScreen> createState() => _TravelerListScreenState();
+}
 
+class _TravelerListScreenState extends ConsumerState<TravelerListScreen> {
+  List<Map<String, dynamic>> _trips = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadTrips();
+  }
+
+  Future<void> _loadTrips() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final results = await Future.wait([
+        ref.read(tripServiceProvider).listTrips(),
+        ref.read(profileServiceProvider).getMe(),
+      ]);
+      final allTrips = results[0] as List<Map<String, dynamic>>;
+      final myId = (results[1] as Map<String, dynamic>)['id'];
+      // Filter out the current user's own trips
+      final filtered = allTrips.where((t) => t['user_id'] != myId).toList();
+      if (mounted) setState(() { _trips = filtered; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -19,34 +53,60 @@ class TravelerListScreen extends StatelessWidget {
           icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
           onPressed: () => context.pop(),
         ),
-        title: const Text(
-          'Select Traveler',
-          style: TextStyle(color: Colors.black87),
-        ),
+        title: const Text('Select Traveler', style: TextStyle(color: Colors.black87)),
         centerTitle: true,
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
-        itemCount: trips.length,
-        itemBuilder: (context, i) {
-          final t = trips[i];
-          return _TravelerCard(
-            name: t['traveler']?.toString() ?? 'Traveler',
-            rating: t['rating']?.toString() ?? '4.6',
-            reviews: t['reviews']?.toString() ?? '102 reviews',
-            route: t['route']?.toString() ?? '',
-            capacity: t['capacity']?.toString() ?? '6 kg',
-            rate: t['rate']?.toString() ?? '1500',
-            badgeColor: () {
-              final c = t['color'];
-              if (c is int) return Color(c);
-              if (c is String) return Color(int.tryParse(c) ?? 0xFF2E78F0);
-              return const Color(0xFF2E78F0);
-            }(),
-            onTap: () => context.push('/book/traveler/${t['id']}'),
-          );
-        },
-      ),
+      body: _loading
+          ? const Padding(
+              padding: EdgeInsets.all(20),
+              child: SkeletonList(items: 4, itemHeight: 80),
+            )
+          : _error != null
+              ? Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ErrorBanner(_error!),
+                      const SizedBox(height: 8),
+                      ElevatedButton(onPressed: _loadTrips, child: const Text('Retry')),
+                    ],
+                  ),
+                )
+              : _trips.isEmpty
+                  ? const EmptyState(
+                      icon: Icons.flight_takeoff,
+                      title: 'No travelers available',
+                      subtitle: 'Check back later for new travelers',
+                    )
+                  : ListView.builder(
+                      padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
+                      itemCount: _trips.length,
+                      itemBuilder: (context, i) {
+                        final t = _trips[i];
+                        final origin = t['origin_airport']?.toString() ?? '';
+                        final dest = t['dest_airport']?.toString() ?? '';
+                        final capacity = t['capacity_kg']?.toString() ?? '-';
+                        final fee = t['fee_pkr']?.toString() ?? '-';
+                        final tripId = t['id']?.toString() ?? '';
+                        final airline = t['airline']?.toString() ?? '';
+                        final flightNumber = t['flight_number']?.toString() ?? '';
+
+                        return _TravelerCard(
+                          name: t['traveler_name']?.toString() ?? 'Traveler #${t['user_id'] ?? tripId}',
+                          rating: (t['traveler_rating'] as num?)?.toDouble(),
+                          route: '$origin → $dest',
+                          capacity: '$capacity kg',
+                          rate: fee,
+                          airline: airline,
+                          flightNumber: flightNumber,
+                          onTap: () {
+                            ref.read(bookingDraftProvider.notifier).selectTrip(tripId);
+                            context.push('/book/traveler/$tripId');
+                          },
+                        );
+                      },
+                    ),
     );
   }
 }
@@ -54,22 +114,22 @@ class TravelerListScreen extends StatelessWidget {
 class _TravelerCard extends StatelessWidget {
   const _TravelerCard({
     required this.name,
-    required this.rating,
-    required this.reviews,
     required this.route,
     required this.capacity,
     required this.rate,
-    required this.badgeColor,
     required this.onTap,
+    this.airline = '',
+    this.flightNumber = '',
+    this.rating,
   });
 
   final String name;
-  final String rating;
-  final String reviews;
   final String route;
   final String capacity;
   final String rate;
-  final Color badgeColor;
+  final String airline;
+  final String flightNumber;
+  final double? rating;
   final VoidCallback onTap;
 
   @override
@@ -91,60 +151,50 @@ class _TravelerCard extends StatelessWidget {
                 width: 48,
                 height: 48,
                 decoration: BoxDecoration(
-                  color: badgeColor,
+                  color: AppTheme.primary,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.flight_takeoff,
-                    color: Colors.white, size: 22),
+                child: const Icon(Icons.flight_takeoff, color: Colors.white, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      name,
-                      style: const TextStyle(
-                        fontSize: 14,
-                        fontWeight: FontWeight.w700,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      route,
-                      style: const TextStyle(
-                        fontSize: 12,
-                        color: Colors.black54,
-                      ),
-                    ),
-                    const SizedBox(height: 6),
                     Row(
                       children: [
-                        const Icon(Icons.star,
-                            size: 14, color: Color(0xFFFFC107)),
-                        const SizedBox(width: 4),
-                        Text(
-                          rating,
-                          style: const TextStyle(
-                              fontSize: 12, color: Colors.black87),
-                        ),
-                        const SizedBox(width: 4),
-                        Text(
-                          '($reviews)',
-                          style: const TextStyle(
-                              fontSize: 11, color: Colors.black45),
-                        ),
+                        Flexible(child: Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87))),
+                        if (rating != null && rating! > 0) ...[
+                          const SizedBox(width: 6),
+                          const Icon(Icons.star, size: 13, color: Color(0xFFFFC107)),
+                          const SizedBox(width: 2),
+                          Text(rating!.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+                        ],
                       ],
                     ),
+                    const SizedBox(height: 4),
+                    Text(route, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    if (flightNumber.isNotEmpty) ...[
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                          const Icon(Icons.flight, size: 13, color: AppTheme.primary),
+                          const SizedBox(width: 4),
+                          Text(
+                            '${airline.isNotEmpty ? '$airline ' : ''}$flightNumber',
+                            style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
+                          ),
+                        ],
+                      ),
+                    ],
                     const SizedBox(height: 6),
                     Row(
                       children: [
                         _Pill(text: 'Capacity $capacity'),
                         const SizedBox(width: 6),
-                        _Pill(text: 'Rate Rs. $rate/kg'),
+                        _Pill(text: 'Fee PKR $rate/kg'),
                       ],
-                    )
+                    ),
                   ],
                 ),
               ),
@@ -170,10 +220,7 @@ class _Pill extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         border: Border.all(color: const Color(0xFFE0E2EB)),
       ),
-      child: Text(
-        text,
-        style: const TextStyle(fontSize: 11, color: Colors.black87),
-      ),
+      child: Text(text, style: const TextStyle(fontSize: 11, color: Colors.black87)),
     );
   }
 }

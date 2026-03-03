@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/app_theme.dart';
+
 class BookingUnderReviewScreen extends StatefulWidget {
   const BookingUnderReviewScreen({super.key});
 
@@ -55,7 +57,7 @@ class _BookingUnderReviewScreenState extends State<BookingUnderReviewScreen> {
                   color: const Color(0xFFF0F4FF),
                   borderRadius: BorderRadius.circular(18),
                 ),
-                child: const Icon(Icons.verified, size: 48, color: Color(0xFF2E78F0)),
+                child: const Icon(Icons.verified, size: 48, color: AppTheme.primary),
               ),
               const SizedBox(height: 16),
               Text(
@@ -73,7 +75,7 @@ class _BookingUnderReviewScreenState extends State<BookingUnderReviewScreen> {
               const SizedBox(height: 18),
               const LinearProgressIndicator(
                 minHeight: 4,
-                color: Color(0xFF2E78F0),
+                color: AppTheme.primary,
                 backgroundColor: Color(0xFFE0E2EB),
               ),
             ],
