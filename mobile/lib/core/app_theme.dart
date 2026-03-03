@@ -3,7 +3,10 @@ import 'package:google_fonts/google_fonts.dart';
 
 class AppTheme {
   // Palette
-  static const Color teal = Color(0xFF0E7C7B);
+  static const Color primary = Color(0xFF84AEFE);
+  static const Color primaryDark = Color(0xFF5B8EFE);
+  static const Color primaryLight = Color(0xFFD6E4FF);
+  static const Color primarySurface = Color(0xFFEFF5FF);
   static const Color amber = Color(0xFFFFB347);
   static const Color surface = Color(0xFFF7F5F2);
   static const Color success = Color(0xFF1E9E6A);
@@ -11,11 +14,19 @@ class AppTheme {
   static const Color textPrimary = Color(0xFF1F2933);
   static const Color textSecondary = Color(0xFF4B5563);
 
+  // Spacing
+  static const double spaceSm = 8;
+  static const double spaceMd = 16;
+  static const double spaceLg = 24;
+
+  // Border radius
+  static const double borderRadius = 14.0;
+
   static ThemeData theme() {
     final colorScheme = ColorScheme.fromSeed(
-      seedColor: teal,
+      seedColor: primary,
       brightness: Brightness.light,
-      primary: teal,
+      primary: primary,
       secondary: amber,
       surface: surface,
       error: danger,
@@ -69,7 +80,7 @@ class AppTheme {
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: teal,
+          backgroundColor: primaryDark,
           foregroundColor: Colors.white,
           minimumSize: const Size.fromHeight(48),
           shape:
@@ -79,9 +90,9 @@ class AppTheme {
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: teal,
+          foregroundColor: primaryDark,
           minimumSize: const Size.fromHeight(48),
-          side: const BorderSide(color: teal, width: 1.4),
+          side: const BorderSide(color: primaryDark, width: 1.4),
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           textStyle: textTheme.labelLarge,
@@ -89,7 +100,7 @@ class AppTheme {
       ),
       chipTheme: ChipThemeData(
         backgroundColor: surface,
-        selectedColor: teal.withValues(alpha: 0.12),
+        selectedColor: primaryLight,
         labelStyle: textTheme.bodyMedium!,
         padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

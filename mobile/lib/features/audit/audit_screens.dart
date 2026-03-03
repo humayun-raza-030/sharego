@@ -1,52 +1,153 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_picker/image_picker.dart';
 
-import '../../core/mock_data.dart';
+import '../../core/app_theme.dart';
+import '../../core/providers.dart';
 import '../common/widgets.dart';
 
-class AuditCenterScreen extends StatelessWidget {
+class AuditCenterScreen extends ConsumerStatefulWidget {
   const AuditCenterScreen({super.key});
 
   @override
+  ConsumerState<AuditCenterScreen> createState() => _AuditCenterScreenState();
+}
+
+class _AuditCenterScreenState extends ConsumerState<AuditCenterScreen> {
+  List<Map<String, dynamic>> _logs = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      // Use the AI service to ask about user's disputes/issues
+      final aiService = ref.read(aiServiceProvider);
+      final response = await aiService.chat('Show my recent bookings and any issues');
+      if (mounted) {
+        setState(() {
+          // The AI returns a text response; we'll show it in a simple list
+          _logs = [
+            {'title': 'AI Assistant Response', 'content': response['reply']?.toString() ?? 'No issues found.'},
+          ];
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final issues = MockData.issues;
+    final theme = Theme.of(context);
+
     return DefaultTabController(
-      length: 3,
+      length: 2,
       child: Scaffold(
+        backgroundColor: Colors.white,
         appBar: AppBar(
-          title: const Text('Audit & Issue Center'),
+          title: const Text('Audit & Issues'),
+          elevation: 0,
+          backgroundColor: Colors.white,
           bottom: const TabBar(tabs: [
-            Tab(text: 'Open'),
-            Tab(text: 'Pending'),
-            Tab(text: 'Resolved'),
+            Tab(text: 'My Reports'),
+            Tab(text: 'Status'),
           ]),
           actions: [
             TextButton(
               onPressed: () => context.push('/audit/report/new'),
-              child: const Text('Report', style: TextStyle(color: Colors.blue)),
+              child: const Text('Report', style: TextStyle(color: AppTheme.primary)),
             ),
           ],
         ),
         body: TabBarView(
-          children: List.generate(3, (i) {
-            final filtered = issues.where((iss) {
-              if (i == 0) return iss['status'] == 'Open';
-              if (i == 1) return iss['status'] == 'Pending';
-              return iss['status'] == 'Resolved';
-            }).toList();
-            return ListView(
-              children: [
-                ...filtered.map((e) => Card(
-                      child: ListTile(
-                        title: Text(e['title']?.toString() ?? ''),
-                        subtitle: Text('${e['type']} • Ref ${e['ref']}'),
-                        trailing: StatusPill(e['status']?.toString() ?? ''),
-                        onTap: () => context.push('/audit/${e['id']}'),
+          children: [
+            // My Reports tab
+            _loading
+                ? const Padding(padding: EdgeInsets.all(16), child: SkeletonList(items: 3, itemHeight: 60))
+                : _error != null
+                    ? Center(
+                        child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            ErrorBanner(_error!),
+                            const SizedBox(height: 8),
+                            ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                          ],
+                        ),
+                      )
+                    : RefreshIndicator(
+                        onRefresh: _load,
+                        child: _logs.isEmpty
+                            ? ListView(children: [
+                                const SizedBox(height: 100),
+                                Center(
+                                  child: Column(
+                                    children: [
+                                      Icon(Icons.check_circle_outline, size: 64, color: Colors.grey.shade400),
+                                      const SizedBox(height: 12),
+                                      Text('No issues reported', style: theme.textTheme.titleMedium),
+                                    ],
+                                  ),
+                                ),
+                              ])
+                            : ListView.builder(
+                                padding: const EdgeInsets.all(16),
+                                itemCount: _logs.length,
+                                itemBuilder: (context, i) {
+                                  final log = _logs[i];
+                                  return Card(
+                                    margin: const EdgeInsets.only(bottom: 12),
+                                    child: Padding(
+                                      padding: const EdgeInsets.all(16),
+                                      child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                          Text(log['title']?.toString() ?? '', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                          const SizedBox(height: 8),
+                                          Text(log['content']?.toString() ?? '', style: theme.textTheme.bodyMedium),
+                                        ],
+                                      ),
+                                    ),
+                                  );
+                                },
+                              ),
                       ),
-                    )),
-              ],
-            );
-          }),
+            // Status tab — link to AI assistant for real-time help
+            Center(
+              child: Padding(
+                padding: const EdgeInsets.all(24),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.support_agent, size: 64, color: AppTheme.primary.withValues(alpha: 0.6)),
+                    const SizedBox(height: 16),
+                    Text('Need help?', style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Use the AI Assistant to check status of your bookings, report disputes, or get help.',
+                      textAlign: TextAlign.center,
+                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                    ),
+                    const SizedBox(height: 20),
+                    ElevatedButton.icon(
+                      onPressed: () => context.push('/ai'),
+                      icon: const Icon(Icons.chat),
+                      label: const Text('Open AI Assistant'),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ],
         ),
       ),
     );
@@ -56,44 +157,41 @@ class AuditCenterScreen extends StatelessWidget {
 class IssueDetailScreen extends StatelessWidget {
   const IssueDetailScreen({super.key, required this.id});
   final String id;
+
   @override
   Widget build(BuildContext context) {
-    final issue = MockData.issues
-        .firstWhere((e) => e['id'] == id, orElse: () => MockData.issues.first);
-    final timeline = issue['timeline'] as List;
+    final theme = Theme.of(context);
     return Scaffold(
-      appBar: AppBar(title: Text(issue['title']?.toString() ?? 'Issue')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: Text('Issue #$id'), elevation: 0, backgroundColor: Colors.white),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            StatusPill(issue['status']?.toString() ?? ''),
-            const SizedBox(height: 8),
-            Text('Type: ${issue['type']} • Reporter: ${issue['reportedBy']}'),
-            Text('Reference: ${issue['ref']}'),
+            Text('Issue Details', style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
             const SizedBox(height: 12),
-            const Text('Timeline'),
-            ...timeline.map<Widget>((t) => ListTile(
-                  leading: const Icon(Icons.bolt),
-                  title: Text(t['title']?.toString() ?? ''),
-                  trailing: Text(t['time']?.toString() ?? ''),
-                )),
+            Text('Issue #$id has been submitted for review.', style: theme.textTheme.bodyMedium),
             const SizedBox(height: 12),
-            Text('Notes: ${issue['notes']}'),
+            const StatusPill('Under Review'),
             const Spacer(),
             Row(
               children: [
-                ElevatedButton(
-                    onPressed: () =>
-                        context.push('/audit/${issue['id']}/add-evidence'),
-                    child: const Text('Add Evidence')),
+                Expanded(
+                  child: ElevatedButton(
+                    onPressed: () => context.push('/audit/$id/add-evidence'),
+                    child: const Text('Add Evidence'),
+                  ),
+                ),
                 const SizedBox(width: 8),
-                OutlinedButton(
-                    onPressed: () => context.push('/chat/CHAT-1'),
-                    child: const Text('Contact Support')),
+                Expanded(
+                  child: OutlinedButton(
+                    onPressed: () => context.push('/ai'),
+                    child: const Text('Contact Support'),
+                  ),
+                ),
               ],
-            )
+            ),
           ],
         ),
       ),
@@ -101,41 +199,87 @@ class IssueDetailScreen extends StatelessWidget {
   }
 }
 
-class ReportIssueScreen extends StatelessWidget {
+class ReportIssueScreen extends ConsumerStatefulWidget {
   const ReportIssueScreen({super.key});
+
+  @override
+  ConsumerState<ReportIssueScreen> createState() => _ReportIssueScreenState();
+}
+
+class _ReportIssueScreenState extends ConsumerState<ReportIssueScreen> {
+  String? _category;
+  final _descCtrl = TextEditingController();
+  bool _submitting = false;
+  String? _error;
+
+  Future<void> _submit() async {
+    if (_category == null || _descCtrl.text.trim().isEmpty) {
+      setState(() => _error = 'Please select a category and describe the issue.');
+      return;
+    }
+
+    setState(() { _submitting = true; _error = null; });
+    try {
+      final aiService = ref.read(aiServiceProvider);
+      await aiService.chat(
+        'I want to report an issue. Category: $_category. Description: ${_descCtrl.text.trim()}',
+      );
+      if (!mounted) return;
+      final messenger = ScaffoldMessenger.of(context);
+      context.go('/audit');
+      messenger.showSnackBar(
+        const SnackBar(content: Text('Issue reported successfully')),
+      );
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _submitting = false; });
+    }
+  }
+
+  @override
+  void dispose() {
+    _descCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Report an Issue')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text('Report an Issue'), elevation: 0, backgroundColor: Colors.white),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
           children: [
-            DropdownButtonFormField(
+            DropdownButtonFormField<String>(
               decoration: const InputDecoration(labelText: 'Category'),
+              initialValue: _category,
               items: const [
-                DropdownMenuItem(
-                    value: 'OTP', child: Text('Wrong OTP entered')),
-                // GPS mismatch removed per requirements
-                DropdownMenuItem(
-                    value: 'Marketplace', child: Text('Marketplace issue')),
-                DropdownMenuItem(
-                    value: 'Abuse', child: Text('User harassment')),
+                DropdownMenuItem(value: 'OTP', child: Text('Wrong OTP entered')),
+                DropdownMenuItem(value: 'Marketplace', child: Text('Marketplace issue')),
+                DropdownMenuItem(value: 'Abuse', child: Text('User harassment')),
+                DropdownMenuItem(value: 'Other', child: Text('Other')),
               ],
-              onChanged: (_) {},
+              onChanged: (v) => setState(() => _category = v),
             ),
-            const SizedBox(height: 8),
-            const TextField(
-                maxLines: 4,
-                decoration: InputDecoration(labelText: 'Description')),
-            const SizedBox(height: 8),
-            ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E78F0),
-                ),
-                onPressed: () => context.go('/audit'),
-                child: const Text('Submit')),
+            const SizedBox(height: 12),
+            TextField(
+              controller: _descCtrl,
+              maxLines: 4,
+              decoration: const InputDecoration(
+                labelText: 'Description',
+                hintText: 'Describe what happened...',
+              ),
+            ),
+            if (_error != null) ...[
+              const SizedBox(height: 8),
+              ErrorBanner(_error!),
+            ],
+            const SizedBox(height: 16),
+            LoadingButton(
+              onPressed: _submit,
+              label: 'Submit Report',
+              isLoading: _submitting,
+            ),
           ],
         ),
       ),
@@ -143,29 +287,94 @@ class ReportIssueScreen extends StatelessWidget {
   }
 }
 
-class AddEvidenceScreen extends StatelessWidget {
+class AddEvidenceScreen extends ConsumerStatefulWidget {
   const AddEvidenceScreen({super.key, required this.id});
   final String id;
+
+  @override
+  ConsumerState<AddEvidenceScreen> createState() => _AddEvidenceScreenState();
+}
+
+class _AddEvidenceScreenState extends ConsumerState<AddEvidenceScreen> {
+  final _noteCtrl = TextEditingController();
+  String? _photoPath;
+  bool _submitting = false;
+
+  Future<void> _pickPhoto() async {
+    final picker = ImagePicker();
+    final file = await picker.pickImage(source: ImageSource.gallery, maxWidth: 1200);
+    if (file != null && mounted) {
+      setState(() => _photoPath = file.path);
+    }
+  }
+
+  Future<void> _submit() async {
+    setState(() => _submitting = true);
+    try {
+      if (_photoPath != null) {
+        final profileService = ref.read(profileServiceProvider);
+        await profileService.uploadMedia(_photoPath!);
+      }
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Evidence attached')),
+        );
+        context.go('/audit/${widget.id}');
+      }
+    } catch (e) {
+      if (mounted) setState(() => _submitting = false);
+    }
+  }
+
+  @override
+  void dispose() {
+    _noteCtrl.dispose();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text('Add Evidence')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text('Add Evidence'), elevation: 0, backgroundColor: Colors.white),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
           children: [
-            const TextField(decoration: InputDecoration(labelText: 'Note')),
-            const SizedBox(height: 8),
-            Container(
-              height: 180,
-              width: double.infinity,
-              color: Colors.grey.shade200,
-              child: const Center(child: Text('Upload mock media')),
+            TextField(
+              controller: _noteCtrl,
+              decoration: const InputDecoration(labelText: 'Note'),
+              maxLines: 3,
             ),
             const SizedBox(height: 12),
-            ElevatedButton(
-                onPressed: () => context.go('/audit/$id'),
-                child: const Text('Attach')),
+            GestureDetector(
+              onTap: _pickPhoto,
+              child: Container(
+                height: 180,
+                width: double.infinity,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade100,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: Colors.grey.shade300),
+                ),
+                child: _photoPath != null
+                    ? const Center(child: Icon(Icons.check_circle, color: AppTheme.success, size: 48))
+                    : Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey.shade500),
+                          const SizedBox(height: 8),
+                          Text('Tap to upload photo', style: TextStyle(color: Colors.grey.shade600)),
+                        ],
+                      ),
+              ),
+            ),
+            const SizedBox(height: 16),
+            LoadingButton(
+              onPressed: _submit,
+              label: 'Attach Evidence',
+              isLoading: _submitting,
+            ),
           ],
         ),
       ),
@@ -173,26 +382,73 @@ class AddEvidenceScreen extends StatelessWidget {
   }
 }
 
-class AdminAuditPanelScreen extends StatelessWidget {
+class AdminAuditPanelScreen extends ConsumerStatefulWidget {
   const AdminAuditPanelScreen({super.key});
+
+  @override
+  ConsumerState<AdminAuditPanelScreen> createState() => _AdminAuditPanelScreenState();
+}
+
+class _AdminAuditPanelScreenState extends ConsumerState<AdminAuditPanelScreen> {
+  List<Map<String, dynamic>> _bookings = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() { _loading = true; _error = null; });
+    try {
+      final service = ref.read(featureAServiceProvider);
+      final result = await service.listBookings();
+      if (mounted) setState(() { _bookings = result; _loading = false; });
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final issues = MockData.issues;
+    final theme = Theme.of(context);
+
     return Scaffold(
-      appBar: AppBar(title: const Text('Admin Audit Panel')),
-      body: ListView(
-        children: issues
-            .map((e) => Card(
-                  child: ListTile(
-                    title: Text(e['title']?.toString() ?? ''),
-                    subtitle:
-                        Text('Reporter: ${e['reportedBy']} • ${e['status']}'),
-                    trailing: TextButton(
-                        onPressed: () {}, child: const Text('Resolve')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(title: const Text('Admin Audit Panel'), elevation: 0, backgroundColor: Colors.white),
+      body: _loading
+          ? const Padding(padding: EdgeInsets.all(16), child: SkeletonList(items: 5, itemHeight: 60))
+          : _error != null
+              ? Center(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      ErrorBanner(_error!),
+                      const SizedBox(height: 8),
+                      ElevatedButton(onPressed: _load, child: const Text('Retry')),
+                    ],
                   ),
-                ))
-            .toList(),
-      ),
+                )
+              : RefreshIndicator(
+                  onRefresh: _load,
+                  child: ListView.builder(
+                    padding: const EdgeInsets.all(16),
+                    itemCount: _bookings.length,
+                    itemBuilder: (context, i) {
+                      final b = _bookings[i];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          title: Text('Booking #${b['id']}', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                          subtitle: Text('Status: ${b['status']} • Amount: ${b['currency'] ?? 'PKR'} ${b['amount'] ?? '-'}'),
+                          trailing: StatusPill(b['status']?.toString() ?? ''),
+                        ),
+                      );
+                    },
+                  ),
+                ),
     );
   }
 }

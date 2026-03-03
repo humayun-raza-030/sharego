@@ -1,63 +1,390 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../core/mock_data.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 
-class AiChatScreen extends StatefulWidget {
+import '../../core/app_theme.dart';
+import '../../core/providers.dart';
+
+class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
 
   @override
-  State<AiChatScreen> createState() => _AiChatScreenState();
+  ConsumerState<AiChatScreen> createState() => _AiChatScreenState();
 }
 
-class _AiChatScreenState extends State<AiChatScreen> {
-  final List<Map<String, String>> messages = [
-    {'from': 'AI', 'text': 'Hi! I can answer ShareGo questions.'},
+class _AiChatScreenState extends ConsumerState<AiChatScreen> {
+  final _controller = TextEditingController();
+  final _scrollController = ScrollController();
+  bool _sending = false;
+
+  final List<_ChatMsg> _messages = [
+    _ChatMsg(
+      from: _Sender.ai,
+      text: 'Hi! I\'m your ShareGo assistant. Ask me about escrow, bookings, '
+          'marketplace rules, shipping policies, or your account data.',
+    ),
   ];
 
-  void _send(String text) {
+  static const _quickChips = [
+    'What is escrow?',
+    'Show my bookings',
+    'Explore Lahore',
+    'Is perfume legal to send?',
+    'Places to visit in Dubai',
+    'Can I ship electronics to UK?',
+    'Marketplace rules',
+  ];
+
+  Future<void> _send(String text) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
+
     setState(() {
-      messages.add({'from': 'You', 'text': text});
-      final reply = MockData.aiResponses[text] ?? 'This is a demo answer using local mock data.';
-      messages.add({'from': 'AI', 'text': reply});
+      _messages.add(_ChatMsg(from: _Sender.user, text: trimmed));
+      _sending = true;
+    });
+    _controller.clear();
+    _scrollToBottom();
+
+    try {
+      final service = ref.read(aiServiceProvider);
+      // Build conversation history from recent messages (last 20).
+      final history = _messages
+          .where((m) => m.text.isNotEmpty)
+          .toList()
+          .reversed
+          .take(20)
+          .toList()
+          .reversed
+          .map((m) => {
+                'role': m.from == _Sender.user ? 'user' : 'assistant',
+                'content': m.text,
+              })
+          .toList();
+      final result = await service.chat(trimmed, history: history);
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMsg(
+            from: _Sender.ai,
+            text: result['reply']?.toString() ?? 'No response.',
+            source: result['source']?.toString(),
+            data: result['data'] as Map<String, dynamic>?,
+          ));
+          _sending = false;
+        });
+        _scrollToBottom();
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _messages.add(_ChatMsg(
+            from: _Sender.ai,
+            text: 'Sorry, something went wrong. Please try again.',
+          ));
+          _sending = false;
+        });
+      }
+    }
+  }
+
+  void _scrollToBottom() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (_scrollController.hasClients) {
+        _scrollController.animateTo(
+          _scrollController.position.maxScrollExtent,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
     });
   }
 
   @override
+  void dispose() {
+    _controller.dispose();
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final chips = MockData.aiResponses.keys.toList();
     return Scaffold(
-      appBar: AppBar(title: const Text('AI Chat Bot')),
+      backgroundColor: Colors.white,
+      appBar: AppBar(
+        elevation: 0,
+        backgroundColor: Colors.white,
+        title: const Text('ShareGo AI', style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w700)),
+        centerTitle: true,
+      ),
       body: Column(
         children: [
-          Wrap(
-            spacing: 8,
-            children: chips.map((c) => ActionChip(label: Text(c), onPressed: () => _send(c))).toList(),
-          ),
-          const Divider(),
-          Expanded(
-            child: ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: messages.length,
+          // Quick-action chips.
+          SizedBox(
+            height: 44,
+            child: ListView.separated(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              scrollDirection: Axis.horizontal,
+              itemCount: _quickChips.length,
+              separatorBuilder: (_, __) => const SizedBox(width: 8),
               itemBuilder: (context, i) {
-                final m = messages[i];
-                final me = m['from'] == 'You';
-                return Align(
-                  alignment: me ? Alignment.centerRight : Alignment.centerLeft,
-                  child: Container(
-                    margin: const EdgeInsets.symmetric(vertical: 4),
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: me ? Colors.teal.shade50 : Colors.grey.shade200,
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    child: Text('${m['from']}: ${m['text']}'),
-                  ),
+                return ActionChip(
+                  label: Text(_quickChips[i], style: const TextStyle(fontSize: 12)),
+                  backgroundColor: AppTheme.surface,
+                  shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
+                  onPressed: _sending ? null : () => _send(_quickChips[i]),
                 );
               },
             ),
           ),
+          const Divider(height: 1),
+
+          // Message list.
+          Expanded(
+            child: ListView.builder(
+              controller: _scrollController,
+              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              itemCount: _messages.length + (_sending ? 1 : 0),
+              itemBuilder: (context, i) {
+                if (i == _messages.length) {
+                  // Typing indicator.
+                  return const _TypingBubble();
+                }
+                final msg = _messages[i];
+                return _MessageBubble(msg: msg);
+              },
+            ),
+          ),
+
+          // Input bar.
+          Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+            ),
+            padding: const EdgeInsets.fromLTRB(16, 8, 8, 8),
+            child: SafeArea(
+              top: false,
+              child: Row(
+                children: [
+                  Expanded(
+                    child: TextField(
+                      controller: _controller,
+                      textInputAction: TextInputAction.send,
+                      onSubmitted: _sending ? null : _send,
+                      decoration: InputDecoration(
+                        hintText: 'Ask about ShareGo...',
+                        filled: true,
+                        fillColor: const Color(0xFFF7F8FC),
+                        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
+                      ),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton(
+                    onPressed: _sending ? null : () => _send(_controller.text),
+                    icon: Icon(Icons.send_rounded, color: _sending ? Colors.grey : AppTheme.primary),
+                  ),
+                ],
+              ),
+            ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+// ── Data models ──────────────────────────────────────────────────────
+
+enum _Sender { user, ai }
+
+class _ChatMsg {
+  _ChatMsg({required this.from, required this.text, this.source, this.data});
+
+  final _Sender from;
+  final String text;
+  final String? source;
+  final Map<String, dynamic>? data;
+}
+
+// ── Widgets ──────────────────────────────────────────────────────────
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({required this.msg});
+  final _ChatMsg msg;
+
+  @override
+  Widget build(BuildContext context) {
+    final isUser = msg.from == _Sender.user;
+    final bubble = Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),
+      decoration: BoxDecoration(
+        color: isUser ? AppTheme.primary : AppTheme.surface,
+        borderRadius: BorderRadius.only(
+          topLeft: const Radius.circular(16),
+          topRight: const Radius.circular(16),
+          bottomLeft: Radius.circular(isUser ? 16 : 4),
+          bottomRight: Radius.circular(isUser ? 4 : 16),
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (isUser)
+            Text(
+              msg.text,
+              style: const TextStyle(
+                fontSize: 14,
+                color: Colors.white,
+                height: 1.4,
+              ),
+            )
+          else
+            MarkdownBody(
+              data: msg.text,
+              shrinkWrap: true,
+              selectable: true,
+              styleSheet: MarkdownStyleSheet(
+                p: const TextStyle(fontSize: 14, color: Colors.black87, height: 1.4),
+                strong: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87),
+                em: const TextStyle(fontSize: 14, fontStyle: FontStyle.italic, color: Colors.black87),
+                listBullet: const TextStyle(fontSize: 14, color: Colors.black87),
+                h1: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Colors.black87),
+                h2: const TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Colors.black87),
+                h3: const TextStyle(fontSize: 15, fontWeight: FontWeight.w700, color: Colors.black87),
+                blockSpacing: 8,
+              ),
+            ),
+          if (msg.source != null && !isUser) ...[
+            const SizedBox(height: 4),
+            Text(
+              msg.source == 'faq'
+                  ? 'FAQ'
+                  : msg.source == 'tool'
+                      ? 'Live data'
+                      : msg.source == 'policy'
+                          ? 'Policy'
+                          : msg.source == 'travel_guide'
+                              ? 'Travel Guide'
+                              : msg.source == 'legality_check'
+                                  ? 'Legality Check'
+                                  : msg.source == 'llm'
+                                      ? 'AI'
+                                      : '',
+              style: TextStyle(fontSize: 10, color: Colors.grey.shade500),
+            ),
+          ],
+        ],
+      ),
+    );
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          if (!isUser) ...[
+            const CircleAvatar(
+              radius: 14,
+              backgroundColor: AppTheme.primary,
+              child: Icon(Icons.smart_toy, size: 16, color: Colors.white),
+            ),
+            const SizedBox(width: 6),
+          ],
+          bubble,
+        ],
+      ),
+    );
+  }
+}
+
+class _TypingBubble extends StatelessWidget {
+  const _TypingBubble();
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 4),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          const CircleAvatar(
+            radius: 14,
+            backgroundColor: AppTheme.primary,
+            child: Icon(Icons.smart_toy, size: 16, color: Colors.white),
+          ),
+          const SizedBox(width: 6),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+            decoration: BoxDecoration(
+              color: AppTheme.surface,
+              borderRadius: BorderRadius.circular(16),
+            ),
+            child: const SizedBox(
+              width: 40,
+              height: 16,
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  _Dot(delay: 0),
+                  _Dot(delay: 150),
+                  _Dot(delay: 300),
+                ],
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Dot extends StatefulWidget {
+  const _Dot({required this.delay});
+  final int delay;
+
+  @override
+  State<_Dot> createState() => _DotState();
+}
+
+class _DotState extends State<_Dot> with SingleTickerProviderStateMixin {
+  late final AnimationController _ctrl;
+  late final Animation<double> _anim;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(vsync: this, duration: const Duration(milliseconds: 600));
+    _anim = Tween(begin: 0.0, end: 1.0).animate(CurvedAnimation(parent: _ctrl, curve: Curves.easeInOut));
+    Future.delayed(Duration(milliseconds: widget.delay), () {
+      if (mounted) _ctrl.repeat(reverse: true);
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AnimatedBuilder(
+      animation: _anim,
+      builder: (context, child) {
+        return Transform.translate(
+          offset: Offset(0, -4 * _anim.value),
+          child: Container(
+            width: 6,
+            height: 6,
+            decoration: BoxDecoration(color: Colors.grey.shade400, shape: BoxShape.circle),
+          ),
+        );
+      },
     );
   }
 }

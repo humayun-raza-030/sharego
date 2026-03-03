@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/app_theme.dart';
+
 class ListingSuccessScreen extends StatelessWidget {
   const ListingSuccessScreen({super.key});
 
@@ -20,10 +22,10 @@ class ListingSuccessScreen extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: const Color(0xFFEAF1FF),
                   shape: BoxShape.circle,
-                  border: Border.all(color: const Color(0xFF2E78F0), width: 1),
+                  border: Border.all(color: AppTheme.primary, width: 1),
                 ),
                 child: const Icon(Icons.check_circle,
-                    size: 72, color: Color(0xFF2E78F0)),
+                    size: 72, color: AppTheme.primary),
               ),
               const SizedBox(height: 16),
               const Text(
@@ -46,7 +48,7 @@ class ListingSuccessScreen extends StatelessWidget {
                 height: 52,
                 child: ElevatedButton(
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E78F0),
+                    backgroundColor: AppTheme.primary,
                     elevation: 0,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12),

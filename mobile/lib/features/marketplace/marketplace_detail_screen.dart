@@ -1,26 +1,138 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/mock_data.dart';
+import '../../core/app_theme.dart';
+import '../../core/providers.dart';
 import '../common/widgets.dart';
 
-class ListingDetailScreen extends StatelessWidget {
+class ListingDetailScreen extends ConsumerStatefulWidget {
   const ListingDetailScreen({super.key, required this.id});
   final String id;
 
   @override
-  Widget build(BuildContext context) {
-    final listing = MockData.listings.firstWhere(
-      (e) => e['id'] == id,
-      orElse: () => MockData.listings.first,
+  ConsumerState<ListingDetailScreen> createState() => _ListingDetailScreenState();
+}
+
+class _ListingDetailScreenState extends ConsumerState<ListingDetailScreen> {
+  Map<String, dynamic>? _listing;
+  bool _loading = true;
+  String? _error;
+  int? _currentUserId;
+
+  @override
+  void initState() {
+    super.initState();
+    _fetchListing();
+  }
+
+  Future<void> _fetchListing() async {
+    try {
+      final service = ref.read(marketplaceServiceProvider);
+      final results = await Future.wait([
+        service.getListing(int.parse(widget.id)),
+        ref.read(profileServiceProvider).getMe(),
+      ]);
+      if (mounted) {
+        setState(() {
+          _listing = results[0];
+          _currentUserId = results[1]['id'] as int?;
+          _loading = false;
+        });
+      }
+    } catch (e) {
+      if (mounted) setState(() { _error = e.toString(); _loading = false; });
+    }
+  }
+
+  Future<void> _confirmRemove() async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Remove listing?'),
+        content: const Text('This listing will be marked as removed and hidden from buyers.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Remove'),
+          ),
+        ],
+      ),
     );
-    final images = _extractImages(listing);
+    if (confirmed != true || !mounted) return;
+    try {
+      final service = ref.read(marketplaceServiceProvider);
+      await service.removeListing(int.parse(widget.id));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Listing removed')),
+        );
+        context.pop(true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Failed: ${e.toString().replaceFirst("Exception: ", "")}')),
+        );
+      }
+    }
+  }
+
+  bool get _isOwner =>
+      _currentUserId != null &&
+      _listing != null &&
+      _listing!['seller_id'] == _currentUserId;
+
+  @override
+  Widget build(BuildContext context) {
+    if (_loading) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(elevation: 0, title: const Text('Listing')),
+        body: const Padding(
+          padding: EdgeInsets.all(16),
+          child: SkeletonList(items: 4, itemHeight: 80),
+        ),
+      );
+    }
+
+    if (_error != null || _listing == null) {
+      return Scaffold(
+        backgroundColor: Colors.white,
+        appBar: AppBar(elevation: 0, title: const Text('Listing')),
+        body: Center(
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(_error ?? 'Listing not found', style: const TextStyle(color: Colors.black54)),
+              const SizedBox(height: 12),
+              TextButton(onPressed: () { setState(() { _loading = true; _error = null; }); _fetchListing(); }, child: const Text('Retry')),
+            ],
+          ),
+        ),
+      );
+    }
+
+    final listing = _listing!;
+    final config = ref.watch(envConfigProvider);
+    final images = _extractImages(listing, config.apiBaseUrl);
+    final title = listing['title']?.toString() ?? '';
+    final desc = listing['description']?.toString() ?? '';
+    final price = listing['ask_price'] ?? listing['price'];
+    final priceStr = price != null ? 'PKR ${price.toString()}' : '';
+    final statusStr = listing['status']?.toString() ?? 'ACTIVE';
+    final location = listing['location_text']?.toString() ?? '';
+    final category = listing['category']?.toString() ?? 'General';
+    final condition = listing['condition']?.toString() ?? 'Used';
+    final sellerName = listing['seller_name']?.toString() ?? 'Seller';
 
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
-        title: Text(listing['title']?.toString() ?? ''),
+        title: Text(title),
         actions: [
           IconButton(
             onPressed: () => context.push('/audit/report/new'),
@@ -31,112 +143,199 @@ class ListingDetailScreen extends StatelessWidget {
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 20),
         children: [
-          _ImageGrid(images: images),
+          if (images.isNotEmpty) _ImageGrid(images: images),
           const SizedBox(height: 12),
-          Text(
-            listing['title']?.toString() ?? '',
-            style: const TextStyle(
-              fontSize: 20,
-              fontWeight: FontWeight.w800,
-            ),
-          ),
+          Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
           const SizedBox(height: 6),
-          Text(
-            listing['desc']?.toString() ?? 'No description',
-            style: const TextStyle(fontSize: 14, color: Colors.black87),
-          ),
+          Text(desc.isNotEmpty ? desc : 'No description', style: const TextStyle(fontSize: 14, color: Colors.black87)),
           const SizedBox(height: 10),
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(
-                listing['price']?.toString() ?? '',
-                style: const TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w800,
-                  color: Color(0xFF2E78F0),
-                ),
-              ),
-              StatusPill(
-                listing['status']?.toString() ?? 'ACTIVE',
-                tone: StatusTone.info,
-              ),
+              Text(priceStr, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w800, color: AppTheme.primary)),
+              StatusPill(statusStr, tone: StatusTone.info),
             ],
           ),
-          const SizedBox(height: 4),
-          Row(
-            children: [
+          if (location.isNotEmpty) ...[
+            const SizedBox(height: 4),
+            Row(children: [
               const Icon(Icons.place_outlined, size: 18, color: Colors.black54),
               const SizedBox(width: 4),
-              Text(
-                listing['location']?.toString() ?? '',
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
-              ),
-            ],
-          ),
+              Text(location, style: const TextStyle(fontSize: 13, color: Colors.black54)),
+            ]),
+          ],
           const SizedBox(height: 16),
           const DisclaimerBanner(),
           const SizedBox(height: 16),
-          _SellerCard(
-            name: listing['seller']?.toString() ?? 'Seller',
-            rating: listing['rating']?.toString() ?? '4.6',
-            offers: listing['offers']?.toString() ?? '12 offers',
-          ),
+          _SellerCard(name: sellerName),
           const SizedBox(height: 16),
-          _InfoRow(
-            label: 'Category',
-            value: listing['category']?.toString() ?? 'General',
-          ),
-          _InfoRow(
-            label: 'Condition',
-            value: listing['condition']?.toString() ?? 'Used',
-          ),
-          _InfoRow(
-            label: 'Last offer',
-            value: listing['lastOffer']?.toString() ?? '--',
-          ),
+          _InfoRow(label: 'Category', value: category),
+          _InfoRow(label: 'Condition', value: condition),
           const SizedBox(height: 20),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton(
-                  style: OutlinedButton.styleFrom(
-                    side: const BorderSide(color: Color(0xFF2E78F0)),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+          if (!_isOwner) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppTheme.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                     ),
-                  ),
-                  onPressed: () => context.push('/market/$id/meetup'),
-                  child: const Text(
-                    'Create meetup',
-                    style: TextStyle(color: Color(0xFF2E78F0)),
+                    onPressed: () => context.push('/market/${widget.id}/meetup'),
+                    child: const Text('Create meetup', style: TextStyle(color: AppTheme.primary)),
                   ),
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF2E78F0),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: AppTheme.primary,
+                      elevation: 0,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => context.push('/market/${widget.id}/offer-thread'),
+                    child: const Text('Send offer'),
+                  ),
+                ),
+              ],
+            ),
+          ],
+          if (_isOwner) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton(
+                    style: OutlinedButton.styleFrom(
+                      side: const BorderSide(color: AppTheme.primary),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                    ),
+                    onPressed: () => context.push('/market/${widget.id}/offer-thread'),
+                    child: const Text('View offers', style: TextStyle(color: AppTheme.primary)),
+                  ),
+                ),
+                if (statusStr.toLowerCase() != 'sold' && statusStr.toLowerCase() != 'removed') ...[
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primary,
+                        elevation: 0,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      onPressed: () => context.push('/market/${widget.id}/mark-sold'),
+                      child: const Text('Mark sold'),
                     ),
                   ),
-                  onPressed: () => context.push('/market/$id/offer-thread'),
-                  child: const Text('Send offer'),
-                ),
+                ],
+              ],
+            ),
+            if (statusStr.toLowerCase() != 'sold' && statusStr.toLowerCase() != 'removed') ...[
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppTheme.primary),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.edit_outlined, size: 18, color: AppTheme.primary),
+                      label: const Text('Edit', style: TextStyle(color: AppTheme.primary)),
+                      onPressed: () async {
+                        final updated = await context.push('/market/${widget.id}/edit');
+                        if (updated == true) _fetchListing();
+                      },
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Colors.red),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      ),
+                      icon: const Icon(Icons.delete_outline, size: 18, color: Colors.red),
+                      label: const Text('Remove', style: TextStyle(color: Colors.red)),
+                      onPressed: _confirmRemove,
+                    ),
+                  ),
+                ],
               ),
             ],
-          ),
-          const SizedBox(height: 10),
-          TextButton(
-            onPressed: () => context.push('/market/$id/mark-sold'),
-            child: const Text('Mark sold'),
-          )
+          ],
+          if (statusStr.toLowerCase() == 'sold') ...[
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                icon: const Icon(Icons.star_outline),
+                label: const Text('Leave a Review'),
+                onPressed: () => _showReviewDialog(context),
+              ),
+            ),
+          ],
         ],
       ),
     );
+  }
+
+  Future<void> _showReviewDialog(BuildContext ctx) async {
+    int rating = 5;
+    final commentCtrl = TextEditingController();
+    final result = await showDialog<bool>(
+      context: ctx,
+      builder: (context) => StatefulBuilder(
+        builder: (context, setDialogState) => AlertDialog(
+          title: const Text('Leave a Review'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: List.generate(5, (i) => IconButton(
+                  icon: Icon(i < rating ? Icons.star : Icons.star_border, color: Colors.amber),
+                  onPressed: () => setDialogState(() => rating = i + 1),
+                )),
+              ),
+              TextField(
+                controller: commentCtrl,
+                decoration: const InputDecoration(hintText: 'Add a comment (optional)'),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(context, true), child: const Text('Submit')),
+          ],
+        ),
+      ),
+    );
+
+    if (result == true && mounted) {
+      try {
+        final profileService = ref.read(profileServiceProvider);
+        final sellerId = _listing?['seller_id'] as int? ?? 0;
+        await profileService.submitReview(
+          targetType: 'market',
+          targetId: int.tryParse(widget.id) ?? 0,
+          revieweeId: sellerId,
+          rating: rating,
+          comment: commentCtrl.text.trim().isEmpty ? null : commentCtrl.text.trim(),
+        );
+        if (mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            const SnackBar(content: Text('Review submitted!')),
+          );
+        }
+      } catch (e) {
+        if (mounted) {
+          ScaffoldMessenger.of(ctx).showSnackBar(
+            SnackBar(content: Text('Failed: ${e.toString()}')),
+          );
+        }
+      }
+    }
   }
 }
 
@@ -198,15 +397,8 @@ class _ImageGrid extends StatelessWidget {
 }
 
 class _SellerCard extends StatelessWidget {
-  const _SellerCard({
-    required this.name,
-    required this.rating,
-    required this.offers,
-  });
-
+  const _SellerCard({required this.name});
   final String name;
-  final String rating;
-  final String offers;
 
   @override
   Widget build(BuildContext context) {
@@ -219,41 +411,17 @@ class _SellerCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const CircleAvatar(
+          CircleAvatar(
             radius: 22,
-            backgroundColor: Color(0xFF2E78F0),
-            child: Icon(Icons.person, color: Colors.white),
+            backgroundColor: AppTheme.primary,
+            child: Text(
+              name.isNotEmpty ? name[0].toUpperCase() : 'S',
+              style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 18),
+            ),
           ),
           const SizedBox(width: 12),
           Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  name,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.w700,
-                    fontSize: 14,
-                  ),
-                ),
-                const SizedBox(height: 4),
-                Row(
-                  children: [
-                    const Icon(Icons.star, size: 16, color: Color(0xFFFFC107)),
-                    const SizedBox(width: 4),
-                    Text(
-                      rating,
-                      style: const TextStyle(fontSize: 12),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      offers,
-                      style: const TextStyle(fontSize: 12, color: Colors.black54),
-                    )
-                  ],
-                )
-              ],
-            ),
+            child: Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
           ),
         ],
       ),
@@ -263,7 +431,6 @@ class _SellerCard extends StatelessWidget {
 
 class _InfoRow extends StatelessWidget {
   const _InfoRow({required this.label, required this.value});
-
   final String label;
   final String value;
 
@@ -274,9 +441,7 @@ class _InfoRow extends StatelessWidget {
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: const TextStyle(
-                  fontWeight: FontWeight.w700, color: Colors.black87)),
+          Text(label, style: const TextStyle(fontWeight: FontWeight.w700, color: Colors.black87)),
           Text(value, style: const TextStyle(color: Colors.black87)),
         ],
       ),
@@ -284,15 +449,14 @@ class _InfoRow extends StatelessWidget {
   }
 }
 
-List<String> _extractImages(Map listing) {
-  final imgs = listing['images'];
-  if (imgs is List && imgs.isNotEmpty) {
-    return imgs.map((e) => e.toString()).toList();
+List<String> _extractImages(Map listing, String apiBaseUrl) {
+  final photos = listing['photos_paths'] ?? listing['images'];
+  if (photos is List && photos.isNotEmpty) {
+    return photos.map((e) {
+      final path = e.toString();
+      if (path.startsWith('http')) return path;
+      return '$apiBaseUrl/media/$path';
+    }).toList();
   }
-  return const [
-    'assets/1 mc.png',
-    'assets/2 mc.png',
-    'assets/3 mc.png',
-    'assets/4 mc.png',
-  ];
+  return const [];
 }

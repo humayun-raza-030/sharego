@@ -1,6 +1,6 @@
 import 'package:dio/dio.dart';
 
-class AuthInterceptor extends Interceptor {
+class AuthInterceptor extends QueuedInterceptor {
   AuthInterceptor(this._getToken);
 
   final Future<String?> Function() _getToken;
@@ -11,7 +11,7 @@ class AuthInterceptor extends Interceptor {
     if (token != null && token.isNotEmpty) {
       options.headers['Authorization'] = 'Bearer $token';
     }
-    super.onRequest(options, handler);
+    handler.next(options);
   }
 
   @override

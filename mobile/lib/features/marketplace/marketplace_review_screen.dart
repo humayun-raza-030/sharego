@@ -1,11 +1,20 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../core/app_theme.dart';
+
 class ListingReviewScreen extends StatelessWidget {
   const ListingReviewScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    // Accept listing data passed via extra, or fall back to defaults.
+    final data = GoRouterState.of(context).extra as Map<String, dynamic>? ?? {};
+    final title = data['title']?.toString() ?? 'Your listing';
+    final price = data['price']?.toString() ?? '';
+    final location = data['location']?.toString() ?? '';
+    final condition = data['condition']?.toString() ?? '';
+
     return Scaffold(
       backgroundColor: Colors.white,
       appBar: AppBar(
@@ -17,10 +26,10 @@ class ListingReviewScreen extends StatelessWidget {
         child: Column(
           children: [
             _SummaryCard(
-              title: 'Apple MacBook Pro',
-              price: 'PKR 150,000',
-              location: 'Lahore',
-              condition: 'Used',
+              title: title,
+              price: price.isNotEmpty ? 'PKR $price' : null,
+              location: location.isNotEmpty ? location : null,
+              condition: condition.isNotEmpty ? condition : null,
             ),
             const SizedBox(height: 14),
             const _SummaryCard(
@@ -34,13 +43,6 @@ class ListingReviewScreen extends StatelessWidget {
               width: double.infinity,
               height: 52,
               child: ElevatedButton(
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF2E78F0),
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
                 onPressed: () => context.go('/market/new/success'),
                 child: const Text(
                   'Post listing',
@@ -93,7 +95,7 @@ class _SummaryCard extends StatelessWidget {
             const SizedBox(height: 6),
             Text(price ?? '',
                 style: const TextStyle(
-                    color: Color(0xFF2E78F0),
+                    color: AppTheme.primary,
                     fontWeight: FontWeight.w700,
                     fontSize: 14)),
             if (location != null)

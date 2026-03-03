@@ -1,8 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../core/mock_data.dart';
-
 class TripEditScreen extends StatefulWidget {
   const TripEditScreen({super.key, required this.id, this.trip});
   final String id;
@@ -35,10 +33,8 @@ class _TripEditScreenState extends State<TripEditScreen> {
   }
 
   Map<String, dynamic> _findTrip(String id) {
-    return MockData.trips.firstWhere(
-      (t) => t['id'] == id,
-      orElse: () => {'id': id},
-    );
+    // Trip data should be passed via router extra; fallback to empty.
+    return {'id': id};
   }
 
   @override

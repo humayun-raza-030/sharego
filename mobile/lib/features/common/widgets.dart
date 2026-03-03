@@ -104,8 +104,8 @@ class StatusPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final lower = text.toLowerCase();
-    Color resolved = AppTheme.teal.withValues(alpha: 0.12);
-    Color border = AppTheme.teal.withValues(alpha: 0.5);
+    Color resolved = AppTheme.primary.withValues(alpha: 0.12);
+    Color border = AppTheme.primary.withValues(alpha: 0.5);
     Color label = AppTheme.textPrimary;
     switch (tone ?? _inferTone(lower)) {
       case StatusTone.success:
@@ -124,9 +124,9 @@ class StatusPill extends StatelessWidget {
         label = AppTheme.danger;
         break;
       case StatusTone.info:
-        resolved = AppTheme.teal.withValues(alpha: 0.12);
-        border = AppTheme.teal.withValues(alpha: 0.5);
-        label = AppTheme.teal;
+        resolved = AppTheme.primary.withValues(alpha: 0.12);
+        border = AppTheme.primary.withValues(alpha: 0.5);
+        label = AppTheme.primary;
         break;
       case StatusTone.neutral:
         resolved = Colors.grey.shade100;
@@ -183,8 +183,10 @@ class DisclaimerBanner extends StatelessWidget {
     super.key,
     this.text =
         'Marketplace transactions are peer-to-peer. ShareGo does not provide delivery, courier, or payment services. Verify the other party and follow local laws.',
+    this.onDismiss,
   });
   final String text;
+  final VoidCallback? onDismiss;
 
   @override
   Widget build(BuildContext context) {
@@ -210,6 +212,14 @@ class DisclaimerBanner extends StatelessWidget {
                   ?.copyWith(color: AppTheme.textPrimary),
             ),
           ),
+          if (onDismiss != null)
+            GestureDetector(
+              onTap: onDismiss,
+              child: const Padding(
+                padding: EdgeInsets.only(left: 8),
+                child: Icon(Icons.close, size: 18, color: Colors.black54),
+              ),
+            ),
         ],
       ),
     );
@@ -314,5 +324,146 @@ class SkeletonList extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class LoadingButton extends StatelessWidget {
+  const LoadingButton({
+    super.key,
+    required this.onPressed,
+    required this.label,
+    this.isLoading = false,
+    this.style,
+    this.icon,
+  });
+
+  final VoidCallback? onPressed;
+  final String label;
+  final bool isLoading;
+  final ButtonStyle? style;
+  final IconData? icon;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: double.infinity,
+      height: 52,
+      child: ElevatedButton(
+        style: style,
+        onPressed: isLoading ? null : onPressed,
+        child: isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
+              )
+            : Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (icon != null) ...[
+                    Icon(icon, size: 20),
+                    const SizedBox(width: 8),
+                  ],
+                  Text(label, style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w600)),
+                ],
+              ),
+      ),
+    );
+  }
+}
+
+class EmptyState extends StatelessWidget {
+  const EmptyState({
+    super.key,
+    required this.icon,
+    required this.title,
+    this.subtitle,
+    this.actionLabel,
+    this.onAction,
+  });
+
+  final IconData icon;
+  final String title;
+  final String? subtitle;
+  final String? actionLabel;
+  final VoidCallback? onAction;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 48, color: AppTheme.textSecondary.withValues(alpha: 0.5)),
+            const SizedBox(height: 12),
+            Text(
+              title,
+              style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16),
+              textAlign: TextAlign.center,
+            ),
+            if (subtitle != null) ...[
+              const SizedBox(height: 4),
+              Text(
+                subtitle!,
+                style: Theme.of(context).textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
+            if (actionLabel != null && onAction != null) ...[
+              const SizedBox(height: 16),
+              ElevatedButton(onPressed: onAction, child: Text(actionLabel!)),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class ErrorBanner extends StatelessWidget {
+  const ErrorBanner(this.message, {super.key});
+  final String message;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppTheme.danger.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppTheme.danger.withValues(alpha: 0.4)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.error_outline, color: AppTheme.danger, size: 20),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: const TextStyle(color: AppTheme.danger, fontSize: 13, fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+String timeAgo(String? raw) {
+  if (raw == null || raw.isEmpty) return '';
+  try {
+    final dt = DateTime.parse(raw);
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 1) return 'just now';
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    if (diff.inDays < 7) return '${diff.inDays}d ago';
+    return '${dt.day}/${dt.month}/${dt.year}';
+  } catch (_) {
+    return raw;
   }
 }
