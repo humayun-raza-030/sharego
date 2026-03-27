@@ -58,11 +58,9 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('My Bookings'),
         elevation: 0,
-        backgroundColor: Colors.white,
       ),
       body: _loading
           ? const Padding(
@@ -85,13 +83,13 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.receipt_long_outlined, size: 64, color: Colors.grey.shade400),
+                          Icon(Icons.receipt_long_outlined, size: 64, color: theme.colorScheme.onSurfaceVariant),
                           const SizedBox(height: 12),
                           Text('No bookings yet', style: theme.textTheme.titleMedium),
                           const SizedBox(height: 4),
                           Text(
                             'Create a request to get started',
-                            style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey),
+                            style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                           ),
                         ],
                       ),
@@ -110,7 +108,7 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
                             elevation: 0,
                             shape: RoundedRectangleBorder(
                               borderRadius: BorderRadius.circular(12),
-                              side: BorderSide(color: Colors.grey.shade200),
+                              side: BorderSide(color: theme.dividerColor),
                             ),
                             child: InkWell(
                               borderRadius: BorderRadius.circular(12),
@@ -143,14 +141,14 @@ class _BookingListScreenState extends ConsumerState<BookingListScreen> {
                                           const SizedBox(height: 2),
                                           Text(
                                             'Trip #${b['trip_id']} • ${b['currency'] ?? 'PKR'} ${b['amount'] ?? '-'}',
-                                            style: theme.textTheme.bodySmall?.copyWith(color: Colors.grey.shade600),
+                                            style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                                           ),
                                         ],
                                       ),
                                     ),
                                     StatusPill(status),
                                     const SizedBox(width: 4),
-                                    const Icon(Icons.chevron_right, color: Colors.grey),
+                                    Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
                                   ],
                                 ),
                               ),

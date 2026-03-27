@@ -65,8 +65,7 @@ class _PickupOtpScreenState extends ConsumerState<PickupOtpScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Pickup OTP'), elevation: 0, backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Pickup OTP'), elevation: 0),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(

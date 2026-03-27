@@ -9,7 +9,8 @@ from sqlmodel import Session, select
 from app.core.audit import write_audit_log
 from app.domain.escrow.service import deduct_wallet, get_balance, simulate_hold
 from app.domain.handover.service import generate_codes
-from app.models import Booking, BookingStatus, EscrowTx, HandoverEvent, RequestItem, Trip, User
+from app.models import Booking, BookingStatus, BookingUpdate, EscrowTx, HandoverEvent, Message, RequestItem, Trip, User
+from app.schemas.booking_updates import ALLOWED_UPDATE_TYPES, BookingUpdateCreate, BookingUpdateRead
 from app.schemas.bookings import BookingCreate, BookingRead
 
 
@@ -347,3 +348,119 @@ def list_bookings_for_user(
         if is_admin or actor_id in {trip.user_id, request.user_id}:
             output.append(_to_booking_read(session, booking))
     return output
+
+
+def create_booking_update(
+    session: Session,
+    *,
+    booking_id: int,
+    user_id: int,
+    data: BookingUpdateCreate,
+    request_id: str | None = None,
+) -> BookingUpdateRead:
+    booking = _get_booking_or_404(session, booking_id)
+    trip, _request = _get_trip_request_or_404(session, booking)
+    if trip.user_id != user_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only the traveler can post status updates",
+        )
+    if booking.status not in {BookingStatus.ACCEPTED.value, BookingStatus.PICKUP_OK.value}:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Updates can only be posted when booking is ACCEPTED or PICKUP_OK",
+        )
+    if data.update_type not in ALLOWED_UPDATE_TYPES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid update_type. Allowed: {', '.join(sorted(ALLOWED_UPDATE_TYPES))}",
+        )
+
+    entry = BookingUpdate(
+        booking_id=booking_id,
+        user_id=user_id,
+        update_type=data.update_type,
+        note=data.note,
+    )
+    session.add(entry)
+    session.commit()
+    session.refresh(entry)
+
+    # Auto-notify the buyer via in-app message
+    _UPDATE_LABELS = {
+        "picked_up": "Picked up your item",
+        "at_airport": "At the airport",
+        "in_transit": "In transit / on flight",
+        "arrived": "Arrived in destination city",
+        "custom": "Status update",
+    }
+    user = session.get(User, user_id)
+    traveler_name = (user.name or user.email) if user else "Traveler"
+    label = _UPDATE_LABELS.get(data.update_type, data.update_type)
+    note_text = f' — "{data.note}"' if data.note else ""
+    msg_content = f"📦 Booking #{booking_id} update: {label}{note_text}"
+    notification = Message(
+        sender_id=user_id,
+        receiver_id=_request.user_id,
+        content=msg_content,
+        booking_id=booking_id,
+    )
+    session.add(notification)
+    session.commit()
+
+    write_audit_log(
+        session,
+        actor=str(user_id),
+        action="BOOKING_UPDATE_POSTED",
+        entity=f"booking:{booking_id}",
+        request_id=request_id,
+        after={"update_type": data.update_type, "note": data.note},
+    )
+    return BookingUpdateRead(
+        id=entry.id,
+        booking_id=entry.booking_id,
+        user_id=entry.user_id,
+        update_type=entry.update_type,
+        note=entry.note,
+        created_at=entry.created_at,
+        user_name=(user.name or user.email) if user else None,
+    )
+
+
+def list_booking_updates(
+    session: Session,
+    *,
+    booking_id: int,
+    actor_id: int,
+    is_admin: bool = False,
+) -> list[BookingUpdateRead]:
+    booking = _get_booking_or_404(session, booking_id)
+    trip, request = _get_trip_request_or_404(session, booking)
+    if not is_admin and actor_id not in {trip.user_id, request.user_id}:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not allowed to view this booking's updates",
+        )
+
+    entries = session.exec(
+        select(BookingUpdate)
+        .where(BookingUpdate.booking_id == booking_id)
+        .order_by(BookingUpdate.created_at.asc())
+    ).all()
+
+    user_cache: dict[int, User | None] = {}
+    result: list[BookingUpdateRead] = []
+    for e in entries:
+        if e.user_id not in user_cache:
+            user_cache[e.user_id] = session.get(User, e.user_id)
+        user = user_cache[e.user_id]
+        result.append(BookingUpdateRead(
+            id=e.id,
+            booking_id=e.booking_id,
+            user_id=e.user_id,
+            update_type=e.update_type,
+            note=e.note,
+            created_at=e.created_at,
+            user_name=(user.name or user.email) if user else None,
+        ))
+    return result

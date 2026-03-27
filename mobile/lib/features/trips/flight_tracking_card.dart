@@ -67,13 +67,13 @@ class _FlightTrackingCardState extends ConsumerState<FlightTrackingCard> {
         padding: const EdgeInsets.all(12),
         margin: const EdgeInsets.symmetric(vertical: 8),
         decoration: BoxDecoration(
-          color: AppTheme.surface,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE0E2EB)),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Row(
           children: [
-            const Icon(Icons.info_outline, color: Colors.black45, size: 20),
+            Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurfaceVariant, size: 20),
             const SizedBox(width: 8),
             Expanded(
               child: Text(
@@ -102,9 +102,9 @@ class _FlightTrackingCardState extends ConsumerState<FlightTrackingCard> {
       padding: const EdgeInsets.all(14),
       margin: const EdgeInsets.symmetric(vertical: 8),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E2EB)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

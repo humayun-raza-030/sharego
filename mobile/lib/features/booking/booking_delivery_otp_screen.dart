@@ -65,8 +65,7 @@ class _DeliveryOtpScreenState extends ConsumerState<DeliveryOtpScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Delivery OTP'), elevation: 0, backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Delivery OTP'), elevation: 0),
       body: Padding(
         padding: const EdgeInsets.all(20),
         child: Column(

@@ -51,9 +51,7 @@
               <button type="submit" class="btn btn-refund btn-sm">Refund</button>
             </form>
           {% endif %}
-          {% if b.status not in ('DELIVERY_OK', 'CANCELLED', 'EXPIRED') or b.escrow_status != 'hold' %}
-            <span class="text-muted">—</span>
-          {% endif %}
+          <a href="/admin/booking-detail/{{ b.id }}" class="btn btn-sm" style="background:#64748b;color:#fff;text-decoration:none;margin-left:4px;">View</a>
         </td>
       </tr>
       {% endfor %}

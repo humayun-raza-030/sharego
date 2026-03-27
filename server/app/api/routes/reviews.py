@@ -66,21 +66,43 @@ def _validate_market_review(session: Session, user: User, target_id: int) -> int
             detail="Reviews are only allowed after the listing is marked SOLD",
         )
 
-    # The reviewer must be the seller or the buyer of an accepted offer.
+    seller_id = listing.seller_id
+
+    # Try to find the buyer from an accepted offer first.
     accepted_offer = session.exec(
         select(MarketOffer).where(
             MarketOffer.listing_id == target_id,
             MarketOffer.status == OfferStatus.ACCEPTED.value,
         )
     ).first()
-
-    seller_id = listing.seller_id
     buyer_id = accepted_offer.from_user_id if accepted_offer else None
 
     if user.id == seller_id and buyer_id:
         return buyer_id
     if user.id == buyer_id:
         return seller_id
+
+    # Fallback: if no accepted offer, allow any offer participant to review the seller
+    # (listing was marked sold manually without accepting a specific offer)
+    if user.id != seller_id:
+        any_offer = session.exec(
+            select(MarketOffer).where(
+                MarketOffer.listing_id == target_id,
+                MarketOffer.from_user_id == user.id,
+            )
+        ).first()
+        if any_offer:
+            return seller_id
+
+    # Allow seller to review the most recent offer maker if no accepted offer
+    if user.id == seller_id and not buyer_id:
+        latest_offer = session.exec(
+            select(MarketOffer)
+            .where(MarketOffer.listing_id == target_id)
+            .order_by(MarketOffer.ts.desc())
+        ).first()
+        if latest_offer:
+            return latest_offer.from_user_id
 
     raise HTTPException(
         status_code=status.HTTP_403_FORBIDDEN,
@@ -129,16 +151,12 @@ async def create_review(
     else:
         expected_reviewee = _validate_market_review(session, user, payload.target_id)
 
-    # The reviewee provided by the client must match the actual other party.
-    if payload.reviewee_id != expected_reviewee:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"reviewee_id must be {expected_reviewee} for this target",
-        )
+    # Use server-determined reviewee (ignore client-provided value if mismatched).
+    reviewee_id = expected_reviewee
 
     review = Review(
         reviewer_id=user.id,
-        reviewee_id=payload.reviewee_id,
+        reviewee_id=reviewee_id,
         target_type=payload.target_type,
         target_id=payload.target_id,
         rating=payload.rating,
@@ -149,7 +167,7 @@ async def create_review(
     session.refresh(review)
 
     # Update the reviewee's average rating.
-    _update_rating_avg(session, payload.reviewee_id)
+    _update_rating_avg(session, reviewee_id)
     session.commit()
 
     review_data = ReviewRead.model_validate(review)

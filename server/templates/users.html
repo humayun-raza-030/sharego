@@ -60,6 +60,10 @@
             <button type="submit" class="btn btn-reject btn-sm">Remove Admin</button>
           </form>
           {% endif %}
+          <form method="POST" action="/admin/user-action/{{ u.id }}/delete" class="inline-form"
+                onsubmit="return confirm('Delete user {{ u.email }}? This cannot be undone.');">
+            <button type="submit" class="btn btn-reject btn-sm" style="background:#dc2626;">Delete</button>
+          </form>
         </td>
       </tr>
       {% endfor %}

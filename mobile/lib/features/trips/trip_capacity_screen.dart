@@ -82,7 +82,7 @@ class _TripCapacityScreenState extends ConsumerState<TripCapacityScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE0E2EB)),
+          borderSide: BorderSide(color: Theme.of(context).dividerColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -123,14 +123,12 @@ class _TripCapacityScreenState extends ConsumerState<TripCapacityScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
-        backgroundColor: Colors.white,
         title: const Text('Trip details'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0),
@@ -235,7 +233,7 @@ class _TripCapacityScreenState extends ConsumerState<TripCapacityScreen> {
                 Text(
                   'If previously added, fields preload and stay editable.',
                   style: theme.textTheme.bodySmall
-                      ?.copyWith(color: Colors.black54),
+                      ?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                 ),
               ],
             ),
@@ -274,9 +272,9 @@ class _Card extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E2EB)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

@@ -24,10 +24,31 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
   final _messageCtrl = TextEditingController();
   bool _sending = false;
 
+  int? _currentUserId;
+  int? _sellerId;
+  bool get _isSeller => _currentUserId != null && _currentUserId == _sellerId;
+
   @override
   void initState() {
     super.initState();
-    _fetchOffers();
+    _init();
+  }
+
+  Future<void> _init() async {
+    await Future.wait([_loadIdentity(), _fetchOffers()]);
+  }
+
+  Future<void> _loadIdentity() async {
+    try {
+      final profile = await ref.read(profileServiceProvider).getMe();
+      final listing = await ref.read(marketplaceServiceProvider).getListing(int.parse(widget.listingId));
+      if (mounted) {
+        setState(() {
+          _currentUserId = profile['id'] as int?;
+          _sellerId = listing['seller_id'] as int?;
+        });
+      }
+    } catch (_) {}
   }
 
   Future<void> _fetchOffers() async {
@@ -37,12 +58,139 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
       if (mounted) setState(() { _offers = data; _loading = false; });
     } catch (e) {
       if (mounted) {
-        String msg = e.toString().replaceFirst('Exception: ', '');
-        if (e is DioException && e.response?.data is Map) {
-          msg = e.response!.data['detail']?.toString() ?? msg;
-        }
-        setState(() { _error = msg; _loading = false; });
+        setState(() { _error = _extractError(e); _loading = false; });
       }
+    }
+  }
+
+  Future<void> _reload() async {
+    setState(() { _loading = true; _error = null; });
+    await _fetchOffers();
+  }
+
+  String _extractError(Object e) {
+    String msg = e.toString().replaceFirst('Exception: ', '');
+    if (e is DioException && e.response?.data is Map) {
+      msg = e.response!.data['detail']?.toString() ?? msg;
+    }
+    return msg;
+  }
+
+  // ── Seller actions ──────────────────────────────────
+
+  Future<void> _acceptOffer(int offerId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Accept Offer'),
+        content: const Text('Are you sure you want to accept this offer? Other pending offers will be declined.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Accept')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(marketplaceServiceProvider).acceptOffer(offerId);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer accepted')));
+      await _reload();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_extractError(e))));
+    }
+  }
+
+  Future<void> _declineOffer(int offerId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Decline Offer'),
+        content: const Text('Are you sure you want to decline this offer?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Decline'),
+          ),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(marketplaceServiceProvider).declineOffer(offerId);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer declined')));
+      await _reload();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_extractError(e))));
+    }
+  }
+
+  Future<void> _showCounterDialog(int offerId) async {
+    final counterAmountCtrl = TextEditingController();
+    final counterMsgCtrl = TextEditingController();
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Counter Offer'),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: counterAmountCtrl,
+              keyboardType: TextInputType.number,
+              decoration: const InputDecoration(labelText: 'Your counter amount (PKR)', isDense: true),
+            ),
+            const SizedBox(height: 8),
+            TextField(
+              controller: counterMsgCtrl,
+              decoration: const InputDecoration(labelText: 'Message (optional)', isDense: true),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Send Counter')),
+        ],
+      ),
+    );
+    if (result != true) return;
+    final amount = double.tryParse(counterAmountCtrl.text.trim());
+    if (amount == null || amount <= 0) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Enter a valid amount')));
+      return;
+    }
+    try {
+      final msg = counterMsgCtrl.text.trim();
+      await ref.read(marketplaceServiceProvider).counterOffer(offerId, amount: amount, message: msg.isNotEmpty ? msg : null);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Counter offer sent')));
+      await _reload();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_extractError(e))));
+    }
+  }
+
+  // ── Buyer actions ───────────────────────────────────
+
+  Future<void> _withdrawOffer(int offerId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Withdraw Offer'),
+        content: const Text('Are you sure you want to withdraw this offer?'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+          ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Withdraw')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    try {
+      await ref.read(marketplaceServiceProvider).withdrawOffer(offerId);
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Offer withdrawn')));
+      await _reload();
+    } catch (e) {
+      if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(_extractError(e))));
     }
   }
 
@@ -67,21 +215,21 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
       );
       _amountCtrl.clear();
       _messageCtrl.clear();
-      // Refresh the list after sending.
-      setState(() { _loading = true; _sending = false; });
-      await _fetchOffers();
+      setState(() { _sending = false; });
+      await _reload();
     } catch (e) {
       if (mounted) {
         setState(() => _sending = false);
-        String msg = e.toString().replaceFirst('Exception: ', '');
-        if (e is DioException && e.response?.data is Map) {
-          msg = e.response!.data['detail']?.toString() ?? msg;
-        }
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(msg)),
+          SnackBar(content: Text(_extractError(e))),
         );
       }
     }
+  }
+
+  bool _isActionable(String status) {
+    final s = status.toUpperCase();
+    return s == 'SENT' || s == 'COUNTERED';
   }
 
   @override
@@ -127,16 +275,16 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
           children: [
             ErrorBanner(_error!),
             const SizedBox(height: 12),
-            TextButton(onPressed: () { setState(() { _loading = true; _error = null; }); _fetchOffers(); }, child: const Text('Retry')),
+            TextButton(onPressed: _reload, child: const Text('Retry')),
           ],
         ),
       );
     }
     if (_offers.isEmpty) {
-      return const EmptyState(
+      return EmptyState(
         icon: Icons.local_offer_outlined,
         title: 'No offers yet',
-        subtitle: 'Be the first to send an offer!',
+        subtitle: _isSeller ? 'No offers received yet.' : 'Be the first to send an offer!',
       );
     }
 
@@ -152,13 +300,14 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
         final message = o['message']?.toString() ?? '';
         final byName = o['buyer_name']?.toString() ?? o['by']?.toString() ?? '';
         final createdAt = timeAgo(o['created_at']?.toString());
+        final offerId = o['id'] as int? ?? 0;
 
         return Align(
           alignment: isMine ? Alignment.centerRight : Alignment.centerLeft,
           child: Container(
             margin: const EdgeInsets.only(bottom: 10),
             padding: const EdgeInsets.all(12),
-            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
+            constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.80),
             decoration: BoxDecoration(
               color: isMine ? AppTheme.primary.withValues(alpha: 0.1) : Colors.white,
               borderRadius: BorderRadius.circular(12),
@@ -172,7 +321,11 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
                   children: [
                     StatusPill(
                       status,
-                      tone: status.toLowerCase().contains('accept') ? StatusTone.success : StatusTone.info,
+                      tone: status.toLowerCase().contains('accept')
+                          ? StatusTone.success
+                          : status.toLowerCase().contains('decline') || status.toLowerCase().contains('withdrawn')
+                              ? StatusTone.danger
+                              : StatusTone.info,
                     ),
                     const SizedBox(width: 8),
                     Flexible(
@@ -188,6 +341,73 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
                 ],
                 const SizedBox(height: 2),
                 Text(byName, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+
+                // Seller action buttons
+                if (_isSeller && _isActionable(status)) ...[
+                  const SizedBox(height: 10),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 6,
+                    children: [
+                      SizedBox(
+                        height: 32,
+                        child: ElevatedButton(
+                          style: ElevatedButton.styleFrom(
+                            backgroundColor: AppTheme.success,
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: () => _acceptOffer(offerId),
+                          child: const Text('Accept'),
+                        ),
+                      ),
+                      SizedBox(
+                        height: 32,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.red,
+                            side: const BorderSide(color: Colors.red),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: () => _declineOffer(offerId),
+                          child: const Text('Decline'),
+                        ),
+                      ),
+                      SizedBox(
+                        height: 32,
+                        child: OutlinedButton(
+                          style: OutlinedButton.styleFrom(
+                            foregroundColor: Colors.amber.shade800,
+                            side: BorderSide(color: Colors.amber.shade800),
+                            padding: const EdgeInsets.symmetric(horizontal: 14),
+                            textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                          ),
+                          onPressed: () => _showCounterDialog(offerId),
+                          child: const Text('Counter'),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+
+                // Buyer withdraw button
+                if (!_isSeller && isMine && _isActionable(status)) ...[
+                  const SizedBox(height: 10),
+                  SizedBox(
+                    height: 32,
+                    child: OutlinedButton(
+                      style: OutlinedButton.styleFrom(
+                        foregroundColor: Colors.red,
+                        side: const BorderSide(color: Colors.red),
+                        padding: const EdgeInsets.symmetric(horizontal: 14),
+                        textStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+                      ),
+                      onPressed: () => _withdrawOffer(offerId),
+                      child: const Text('Withdraw'),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),
@@ -197,6 +417,36 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
   }
 
   Widget _buildComposer() {
+    // Seller sees info bar instead of offer form
+    if (_isSeller) {
+      return SafeArea(
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          decoration: BoxDecoration(
+            color: Colors.grey.shade50,
+            border: Border(top: BorderSide(color: Colors.grey.shade200)),
+          ),
+          child: Row(
+            children: [
+              Icon(Icons.info_outline, size: 18, color: Colors.grey.shade600),
+              const SizedBox(width: 8),
+              Expanded(
+                child: Text(
+                  'You are the seller. Use the buttons above to respond to offers.',
+                  style: TextStyle(fontSize: 13, color: Colors.grey.shade600),
+                ),
+              ),
+              TextButton(
+                onPressed: () => context.push('/audit/report/new'),
+                child: const Text('Report'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+
+    // Buyer sees the send-offer form
     return SafeArea(
       child: Container(
         padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),

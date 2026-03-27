@@ -94,14 +94,13 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     if (_loading) {
       return Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
           elevation: 0,
-          backgroundColor: Colors.white,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+            icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
             onPressed: () => context.pop(),
           ),
         ),
@@ -114,12 +113,10 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
 
     if (_error != null || _trip == null) {
       return Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
           elevation: 0,
-          backgroundColor: Colors.white,
           leading: IconButton(
-            icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+            icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
             onPressed: () => context.pop(),
           ),
         ),
@@ -137,17 +134,15 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
     final feePkr = trip['fee_pkr']?.toString() ?? '-';
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
-        backgroundColor: Colors.white,
         actions: [
           IconButton(
-            icon: const Icon(Icons.share, color: Colors.black87),
+            icon: Icon(Icons.share, color: theme.colorScheme.onSurface),
             onPressed: () {},
           )
         ],
@@ -163,9 +158,9 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
                 width: double.infinity,
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE0E2EB)),
+                  border: Border.all(color: theme.dividerColor),
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -175,8 +170,8 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
                         CircleAvatar(
                           radius: 26,
                           backgroundColor: AppTheme.primary,
-                          child: const Icon(Icons.person,
-                              color: Colors.white, size: 30),
+                          child: Icon(Icons.person,
+                              color: theme.colorScheme.onPrimary, size: 30),
                         ),
                         const SizedBox(width: 12),
                         Expanded(
@@ -185,10 +180,10 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
                             children: [
                               Text(
                                 trip['traveler_name']?.toString() ?? 'Traveler #${trip['user_id'] ?? trip['id']}',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w700,
-                                  color: Colors.black87,
+                                  color: theme.colorScheme.onSurface,
                                 ),
                               ),
                               if (trip['traveler_rating'] != null && (trip['traveler_rating'] as num) > 0) ...[
@@ -199,7 +194,7 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
                                     const SizedBox(width: 2),
                                     Text(
                                       (trip['traveler_rating'] as num).toStringAsFixed(1),
-                                      style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54),
+                                      style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurfaceVariant),
                                     ),
                                   ],
                                 ),
@@ -207,16 +202,30 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
                               const SizedBox(height: 2),
                               Text(
                                 '$origin → $dest',
-                                style: const TextStyle(
+                                style: TextStyle(
                                   fontSize: 13,
-                                  color: Colors.black54,
+                                  color: theme.colorScheme.onSurfaceVariant,
                                 ),
                               ),
                             ],
                           ),
                         ),
-                        const Icon(Icons.bookmark_border,
-                            color: Colors.black45, size: 24),
+                        GestureDetector(
+                          onTap: () async {
+                            final savedTrips = ref.read(savedTripsServiceProvider);
+                            await savedTrips.toggle(int.tryParse(widget.id) ?? 0);
+                            setState(() {});
+                          },
+                          child: Icon(
+                            ref.read(savedTripsServiceProvider).isSaved(int.tryParse(widget.id) ?? 0)
+                                ? Icons.bookmark
+                                : Icons.bookmark_border,
+                            color: ref.read(savedTripsServiceProvider).isSaved(int.tryParse(widget.id) ?? 0)
+                                ? AppTheme.primary
+                                : theme.colorScheme.onSurfaceVariant,
+                            size: 24,
+                          ),
+                        ),
                       ],
                     ),
                     const SizedBox(height: 16),
@@ -238,13 +247,13 @@ class _TravelerDetailScreenState extends ConsumerState<TravelerDetailScreen> {
               if ((trip['flight_number']?.toString() ?? '').isNotEmpty)
                 FlightTrackingCard(tripId: int.parse(widget.id)),
               const SizedBox(height: 28),
-              const Center(
+              Center(
                 child: Text(
                   'Reviews',
                   style: TextStyle(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
-                    color: Colors.black87,
+                    color: theme.colorScheme.onSurface,
                   ),
                 ),
               ),
@@ -307,19 +316,19 @@ class _ReviewCard extends StatelessWidget {
         width: double.infinity,
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: const Color(0xFFE0E2EB)),
+          border: Border.all(color: Theme.of(context).dividerColor),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const CircleAvatar(
+                CircleAvatar(
                   radius: 18,
-                  backgroundColor: Color(0xFF6DB8FF),
-                  child: Icon(Icons.person, color: Colors.white, size: 20),
+                  backgroundColor: AppTheme.primary.withValues(alpha: 0.6),
+                  child: Icon(Icons.person, color: Theme.of(context).colorScheme.onPrimary, size: 20),
                 ),
                 const SizedBox(width: 10),
                 Expanded(
@@ -349,9 +358,9 @@ class _ReviewCard extends StatelessWidget {
               const SizedBox(height: 10),
               Text(
                 comment,
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 12,
-                  color: Colors.black87,
+                  color: Theme.of(context).colorScheme.onSurface,
                   height: 1.35,
                 ),
               ),
@@ -380,19 +389,19 @@ class _DetailRow extends StatelessWidget {
             width: 120,
             child: Text(
               label,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
-                color: Colors.black87,
+                color: Theme.of(context).colorScheme.onSurface,
               ),
             ),
           ),
           Expanded(
             child: Text(
               value,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 13,
-                color: Colors.black54,
+                color: Theme.of(context).colorScheme.onSurfaceVariant,
                 height: 1.3,
               ),
             ),

@@ -4,6 +4,22 @@
 {% block heading %}KYC Queue{% endblock %}
 
 {% block content %}
+<style>
+  .kyc-thumb {
+    max-width: 120px;
+    max-height: 90px;
+    border-radius: 6px;
+    border: 1px solid #e2e8f0;
+    object-fit: cover;
+    cursor: pointer;
+    transition: transform 0.15s;
+  }
+  .kyc-thumb:hover {
+    transform: scale(1.05);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.12);
+  }
+</style>
+
 <div class="panel">
   <div class="panel-header">
     Pending Verifications
@@ -17,6 +33,7 @@
         <th>Doc Type</th>
         <th>Document</th>
         <th>Selfie</th>
+        <th>Passport</th>
         <th>Submitted</th>
         <th>Actions</th>
       </tr>
@@ -28,14 +45,27 @@
         <td>{{ p.doc_type or '—' }}</td>
         <td>
           {% if p.doc_url %}
-            <a href="/media/{{ p.doc_url }}" target="_blank">View doc</a>
+            <a href="/media/{{ p.doc_url }}" target="_blank">
+              <img src="/media/{{ p.doc_url }}" alt="Document" class="kyc-thumb">
+            </a>
           {% else %}
             <span class="text-muted">—</span>
           {% endif %}
         </td>
         <td>
           {% if p.selfie_url %}
-            <a href="/media/{{ p.selfie_url }}" target="_blank">View selfie</a>
+            <a href="/media/{{ p.selfie_url }}" target="_blank">
+              <img src="/media/{{ p.selfie_url }}" alt="Selfie" class="kyc-thumb">
+            </a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.passport_url %}
+            <a href="/media/{{ p.passport_url }}" target="_blank">
+              <img src="/media/{{ p.passport_url }}" alt="Passport" class="kyc-thumb">
+            </a>
           {% else %}
             <span class="text-muted">—</span>
           {% endif %}
@@ -67,6 +97,9 @@
       <tr>
         <th>User ID</th>
         <th>Doc Type</th>
+        <th>Document</th>
+        <th>Selfie</th>
+        <th>Passport</th>
         <th>Status</th>
         <th>Updated</th>
       </tr>
@@ -76,6 +109,33 @@
       <tr>
         <td class="mono">#{{ p.user_id }}</td>
         <td>{{ p.doc_type or '—' }}</td>
+        <td>
+          {% if p.doc_url %}
+            <a href="/media/{{ p.doc_url }}" target="_blank">
+              <img src="/media/{{ p.doc_url }}" alt="Document" class="kyc-thumb">
+            </a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.selfie_url %}
+            <a href="/media/{{ p.selfie_url }}" target="_blank">
+              <img src="/media/{{ p.selfie_url }}" alt="Selfie" class="kyc-thumb">
+            </a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
+        <td>
+          {% if p.passport_url %}
+            <a href="/media/{{ p.passport_url }}" target="_blank">
+              <img src="/media/{{ p.passport_url }}" alt="Passport" class="kyc-thumb">
+            </a>
+          {% else %}
+            <span class="text-muted">—</span>
+          {% endif %}
+        </td>
         <td><span class="badge badge-{{ p.status }}">{{ p.status }}</span></td>
         <td class="text-muted">{{ p.updated_at.strftime('%Y-%m-%d %H:%M') }}</td>
       </tr>

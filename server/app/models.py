@@ -271,6 +271,17 @@ class Message(SQLModel, table=True):
     read_at: datetime | None = None
 
 
+class BookingUpdate(SQLModel, table=True):
+    __tablename__ = "booking_updates"
+
+    id: Optional[int] = Field(default=None, primary_key=True)
+    booking_id: int = Field(index=True)
+    user_id: int = Field(index=True)
+    update_type: str = Field(index=True)
+    note: str | None = None
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class AuditLog(SQLModel, table=True):
     __tablename__ = "audit_logs"
 

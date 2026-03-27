@@ -19,7 +19,7 @@ class CtaCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(12),
           boxShadow: const [
             BoxShadow(
@@ -129,9 +129,9 @@ class StatusPill extends StatelessWidget {
         label = AppTheme.primary;
         break;
       case StatusTone.neutral:
-        resolved = Colors.grey.shade100;
-        border = Colors.grey.shade300;
-        label = AppTheme.textPrimary;
+        resolved = Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.08);
+        border = Theme.of(context).dividerColor;
+        label = Theme.of(context).colorScheme.onSurfaceVariant;
         break;
     }
     return Container(
@@ -201,7 +201,7 @@ class DisclaimerBanner extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Icon(Icons.info_outline, color: AppTheme.textPrimary, size: 20),
+          Icon(Icons.info_outline, color: Theme.of(context).colorScheme.onSurface, size: 20),
           const SizedBox(width: 8),
           Expanded(
             child: Text(
@@ -209,15 +209,15 @@ class DisclaimerBanner extends StatelessWidget {
               style: Theme.of(context)
                   .textTheme
                   .bodyMedium
-                  ?.copyWith(color: AppTheme.textPrimary),
+                  ?.copyWith(color: Theme.of(context).colorScheme.onSurface),
             ),
           ),
           if (onDismiss != null)
             GestureDetector(
               onTap: onDismiss,
-              child: const Padding(
-                padding: EdgeInsets.only(left: 8),
-                child: Icon(Icons.close, size: 18, color: Colors.black54),
+              child: Padding(
+                padding: const EdgeInsets.only(left: 8),
+                child: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
             ),
         ],
@@ -299,7 +299,7 @@ class _SkeletonBoxState extends State<SkeletonBox>
           height: widget.height,
           width: widget.width,
           decoration: BoxDecoration(
-            color: Colors.grey.withValues(alpha: t),
+            color: Theme.of(context).colorScheme.onSurface.withValues(alpha: t * 0.3),
             borderRadius: BorderRadius.circular(widget.radius),
           ),
         );

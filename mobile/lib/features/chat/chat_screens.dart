@@ -40,8 +40,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Chats'), elevation: 0, backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Chats'), elevation: 0),
       body: _loading
           ? const Padding(padding: EdgeInsets.all(16), child: SkeletonList(items: 5, itemHeight: 60))
           : _error != null
@@ -60,7 +59,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                       child: Column(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.chat_bubble_outline, size: 64, color: Colors.grey.shade400),
+                          Icon(Icons.chat_bubble_outline, size: 64, color: theme.colorScheme.onSurfaceVariant),
                           const SizedBox(height: 12),
                           Text('No conversations yet', style: theme.textTheme.titleMedium),
                         ],
@@ -100,7 +99,7 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen> {
                                     ),
                                     child: Text('$unread', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w700)),
                                   )
-                                : const Icon(Icons.chevron_right, color: Colors.grey),
+                                : Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
                             onTap: () => context.push('/chat/$peerId'),
                           );
                         },
@@ -126,14 +125,27 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
   bool _sending = false;
   String? _error;
   int? _myUserId;
+  int? _bookingId;
+  bool _hasBookingContext = false;
 
   int get _peerId => int.tryParse(widget.id) ?? 0;
 
+  bool _initialized = false;
+
   @override
-  void initState() {
-    super.initState();
-    _loadProfile();
-    _loadMessages();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_initialized) {
+      _initialized = true;
+      // Extract booking_id from route extra if navigating from booking context
+      final extra = GoRouterState.of(context).extra;
+      if (extra is Map<String, dynamic>) {
+        _bookingId = extra['booking_id'] as int?;
+        if (_bookingId != null) _hasBookingContext = true;
+      }
+      _loadProfile();
+      _loadMessages();
+    }
   }
 
   Future<void> _loadProfile() async {
@@ -150,6 +162,16 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
       final service = ref.read(chatServiceProvider);
       final result = await service.listMessages(_peerId);
       if (mounted) {
+        // Detect booking context from messages if not already set
+        if (!_hasBookingContext) {
+          for (final m in result) {
+            if (m['booking_id'] != null) {
+              _hasBookingContext = true;
+              _bookingId ??= m['booking_id'] as int?;
+              break;
+            }
+          }
+        }
         setState(() { _messages = result; _loading = false; });
         _scrollToBottom();
       }
@@ -177,7 +199,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     setState(() => _sending = true);
     try {
       final service = ref.read(chatServiceProvider);
-      final msg = await service.sendMessage(receiverId: _peerId, content: text);
+      final msg = await service.sendMessage(receiverId: _peerId, content: text, bookingId: _bookingId);
       if (mounted) {
         setState(() {
           _messages.add(msg);
@@ -203,17 +225,33 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: Text('Chat with User #${widget.id}'),
         elevation: 0,
-        backgroundColor: Colors.white,
         actions: [
           IconButton(icon: const Icon(Icons.refresh), onPressed: _loadMessages),
         ],
       ),
       body: Column(
         children: [
+          if (_hasBookingContext)
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              color: Colors.amber.shade50,
+              child: Row(
+                children: [
+                  Icon(Icons.visibility, size: 16, color: Colors.amber.shade800),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'This conversation is linked to a booking and may be reviewed by admin for dispute resolution.',
+                      style: TextStyle(fontSize: 12, color: Colors.amber.shade900),
+                    ),
+                  ),
+                ],
+              ),
+            ),
           Expanded(
             child: _loading
                 ? const Center(child: CircularProgressIndicator())
@@ -244,14 +282,14 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.75),
                                   decoration: BoxDecoration(
-                                    color: fromMe ? AppTheme.primary.withValues(alpha: 0.1) : Colors.white,
+                                    color: fromMe ? AppTheme.primary.withValues(alpha: 0.1) : theme.colorScheme.surface,
                                     borderRadius: BorderRadius.only(
                                       topLeft: const Radius.circular(14),
                                       topRight: const Radius.circular(14),
                                       bottomLeft: Radius.circular(fromMe ? 14 : 4),
                                       bottomRight: Radius.circular(fromMe ? 4 : 14),
                                     ),
-                                    border: fromMe ? null : Border.all(color: Colors.grey.shade200),
+                                    border: fromMe ? null : Border.all(color: theme.dividerColor),
                                   ),
                                   child: Text(
                                     m['content']?.toString() ?? '',
@@ -265,8 +303,8 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
             decoration: BoxDecoration(
-              color: Colors.white,
-              border: Border(top: BorderSide(color: Colors.grey.shade200)),
+              color: theme.colorScheme.surface,
+              border: Border(top: BorderSide(color: theme.dividerColor)),
             ),
             child: SafeArea(
               child: Row(
@@ -280,7 +318,7 @@ class _ChatThreadScreenState extends ConsumerState<ChatThreadScreen> {
                         hintText: 'Type a message...',
                         border: OutlineInputBorder(borderRadius: BorderRadius.circular(24), borderSide: BorderSide.none),
                         filled: true,
-                        fillColor: Colors.grey.shade100,
+                        fillColor: theme.colorScheme.surfaceContainerLow,
                         contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
                       ),
                     ),

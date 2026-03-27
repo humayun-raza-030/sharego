@@ -44,16 +44,15 @@ class _TravelerListScreenState extends ConsumerState<TravelerListScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
-        title: const Text('Select Traveler', style: TextStyle(color: Colors.black87)),
+        title: const Text('Select Traveler'),
         centerTitle: true,
       ),
       body: _loading
@@ -134,15 +133,16 @@ class _TravelerCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Padding(
       padding: const EdgeInsets.only(bottom: 12),
       child: GestureDetector(
         onTap: onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE0E2EB)),
+            border: Border.all(color: theme.dividerColor),
           ),
           padding: const EdgeInsets.all(14),
           child: Row(
@@ -154,7 +154,7 @@ class _TravelerCard extends StatelessWidget {
                   color: AppTheme.primary,
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: const Icon(Icons.flight_takeoff, color: Colors.white, size: 22),
+                child: Icon(Icons.flight_takeoff, color: theme.colorScheme.onPrimary, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -163,17 +163,17 @@ class _TravelerCard extends StatelessWidget {
                   children: [
                     Row(
                       children: [
-                        Flexible(child: Text(name, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: Colors.black87))),
+                        Flexible(child: Text(name, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: theme.colorScheme.onSurface))),
                         if (rating != null && rating! > 0) ...[
                           const SizedBox(width: 6),
                           const Icon(Icons.star, size: 13, color: Color(0xFFFFC107)),
                           const SizedBox(width: 2),
-                          Text(rating!.toStringAsFixed(1), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Colors.black54)),
+                          Text(rating!.toStringAsFixed(1), style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: theme.colorScheme.onSurfaceVariant)),
                         ],
                       ],
                     ),
                     const SizedBox(height: 4),
-                    Text(route, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    Text(route, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
                     if (flightNumber.isNotEmpty) ...[
                       const SizedBox(height: 4),
                       Row(
@@ -198,7 +198,7 @@ class _TravelerCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(Icons.chevron_right, color: Colors.black38),
+              Icon(Icons.chevron_right, color: theme.colorScheme.onSurfaceVariant),
             ],
           ),
         ),
@@ -216,11 +216,11 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(
-        color: const Color(0xFFF4F5F8),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: const Color(0xFFE0E2EB)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
-      child: Text(text, style: const TextStyle(fontSize: 11, color: Colors.black87)),
+      child: Text(text, style: TextStyle(fontSize: 11, color: Theme.of(context).colorScheme.onSurface)),
     );
   }
 }

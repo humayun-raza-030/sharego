@@ -70,7 +70,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
         actions: [
           IconButton(
             tooltip: 'Help',
-            icon: const Icon(Icons.help_outline, color: Colors.black87),
+            icon: const Icon(Icons.help_outline),
             onPressed: () => Coach.show(
               context,
               force: true,
@@ -112,8 +112,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
                             Text(name, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
                           Text(email, style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 13)),
                           if (location.isNotEmpty)
-                            Text(location, style: const TextStyle(fontSize: 12, color: Colors.black54)),
-                          Text('Rating $rating  •  $roles', style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                            Text(location, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
+                          Text('Rating $rating  •  $roles', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
                         ]),
                       ),
                     ],
@@ -470,11 +470,11 @@ class _KycScreenState extends ConsumerState<KycScreen> {
                       onTap: _canSubmit ? _pickPassport : () {},
                     ),
                     const SizedBox(height: 4),
-                    const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 4),
+                    Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 4),
                       child: Text(
                         'Passport photo is required if you plan to be a traveler.',
-                        style: TextStyle(fontSize: 12, color: Colors.black45),
+                        style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant),
                       ),
                     ),
                   ],
@@ -540,16 +540,18 @@ class _UploadArea extends StatelessWidget {
   }
 }
 
-class SettingsScreen extends StatefulWidget {
+class SettingsScreen extends ConsumerStatefulWidget {
   const SettingsScreen({super.key});
   @override
-  State<SettingsScreen> createState() => _SettingsScreenState();
+  ConsumerState<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends ConsumerState<SettingsScreen> {
   bool _notifications = true;
   String _language = 'English';
-  String _theme = 'Light';
+  String _theme = 'System';
+
+  static const _themeCycle = ['System', 'Light', 'Dark'];
 
   @override
   void initState() {
@@ -563,20 +565,32 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _notifications = prefs.getBool('settings_notifications') ?? true;
         _language = prefs.getString('settings_language') ?? 'English';
-        _theme = prefs.getString('settings_theme') ?? 'Light';
+        _theme = prefs.getString('settings_theme') ?? 'System';
       });
+    }
+  }
+
+  ThemeMode _toThemeMode(String value) {
+    switch (value) {
+      case 'Light':
+        return ThemeMode.light;
+      case 'Dark':
+        return ThemeMode.dark;
+      default:
+        return ThemeMode.system;
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
       body: ListView(
         children: [
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 16, 16, 4),
-            child: Text('Preferences', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black54)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
+            child: Text('Preferences', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: theme.colorScheme.onSurfaceVariant)),
           ),
           SwitchListTile(
             secondary: const Icon(Icons.notifications_outlined),
@@ -604,16 +618,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
             title: const Text('Theme'),
             subtitle: Text(_theme),
             onTap: () async {
-              final next = _theme == 'Light' ? 'Dark' : 'Light';
+              final idx = _themeCycle.indexOf(_theme);
+              final next = _themeCycle[(idx + 1) % _themeCycle.length];
               setState(() => _theme = next);
+              ref.read(themeModeProvider.notifier).set(_toThemeMode(next));
               final prefs = await SharedPreferences.getInstance();
               await prefs.setString('settings_theme', next);
             },
           ),
           const Divider(),
-          const Padding(
-            padding: EdgeInsets.fromLTRB(16, 8, 16, 4),
-            child: Text('About', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: Colors.black54)),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 4),
+            child: Text('About', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13, color: theme.colorScheme.onSurfaceVariant)),
           ),
           const ListTile(
             leading: Icon(Icons.info_outline),
@@ -659,9 +675,9 @@ class LogoutScreen extends ConsumerWidget {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 6),
-              const Text(
+              Text(
                 'You will need to sign in again to access your account.',
-                style: TextStyle(fontSize: 13, color: Colors.black54),
+                style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant),
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 24),

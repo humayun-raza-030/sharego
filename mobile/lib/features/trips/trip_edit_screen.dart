@@ -51,10 +51,8 @@ class _TripEditScreenState extends State<TripEditScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Edit ${widget.id}'),
-        backgroundColor: Colors.white,
         elevation: 0,
       ),
       body: ListView(

@@ -98,6 +98,26 @@ class FeatureAService {
     return (response.data as Map).cast<String, dynamic>();
   }
 
+  // ── Booking updates (traveler status) ────────────────
+
+  Future<List<Map<String, dynamic>>> listBookingUpdates(int bookingId) async {
+    final response = await _dio.get('/bookings/$bookingId/updates');
+    final list = response.data as List;
+    return list.map((e) => (e as Map).cast<String, dynamic>()).toList();
+  }
+
+  Future<Map<String, dynamic>> postBookingUpdate(
+    int bookingId, {
+    required String updateType,
+    String? note,
+  }) async {
+    final response = await _dio.post('/bookings/$bookingId/updates', data: {
+      'update_type': updateType,
+      if (note != null && note.isNotEmpty) 'note': note,
+    });
+    return (response.data as Map).cast<String, dynamic>();
+  }
+
   // ── Handover verification ─────────────────────────────
 
   Future<Map<String, dynamic>> verifyPickup({

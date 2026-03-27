@@ -52,11 +52,9 @@ class _AuditCenterScreenState extends ConsumerState<AuditCenterScreen> {
     return DefaultTabController(
       length: 2,
       child: Scaffold(
-        backgroundColor: Colors.white,
         appBar: AppBar(
           title: const Text('Audit & Issues'),
           elevation: 0,
-          backgroundColor: Colors.white,
           bottom: const TabBar(tabs: [
             Tab(text: 'My Reports'),
             Tab(text: 'Status'),
@@ -92,7 +90,7 @@ class _AuditCenterScreenState extends ConsumerState<AuditCenterScreen> {
                                 Center(
                                   child: Column(
                                     children: [
-                                      Icon(Icons.check_circle_outline, size: 64, color: Colors.grey.shade400),
+                                      Icon(Icons.check_circle_outline, size: 64, color: theme.colorScheme.onSurfaceVariant),
                                       const SizedBox(height: 12),
                                       Text('No issues reported', style: theme.textTheme.titleMedium),
                                     ],
@@ -135,7 +133,7 @@ class _AuditCenterScreenState extends ConsumerState<AuditCenterScreen> {
                     Text(
                       'Use the AI Assistant to check status of your bookings, report disputes, or get help.',
                       textAlign: TextAlign.center,
-                      style: theme.textTheme.bodyMedium?.copyWith(color: Colors.grey.shade600),
+                      style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
                     ),
                     const SizedBox(height: 20),
                     ElevatedButton.icon(
@@ -162,8 +160,7 @@ class IssueDetailScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: Text('Issue #$id'), elevation: 0, backgroundColor: Colors.white),
+      appBar: AppBar(title: Text('Issue #$id'), elevation: 0),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -244,8 +241,7 @@ class _ReportIssueScreenState extends ConsumerState<ReportIssueScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Report an Issue'), elevation: 0, backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Report an Issue'), elevation: 0),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: ListView(
@@ -334,9 +330,9 @@ class _AddEvidenceScreenState extends ConsumerState<AddEvidenceScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Add Evidence'), elevation: 0, backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Add Evidence'), elevation: 0),
       body: Padding(
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -353,18 +349,18 @@ class _AddEvidenceScreenState extends ConsumerState<AddEvidenceScreen> {
                 height: 180,
                 width: double.infinity,
                 decoration: BoxDecoration(
-                  color: Colors.grey.shade100,
+                  color: theme.colorScheme.surfaceContainerLowest,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: Colors.grey.shade300),
+                  border: Border.all(color: theme.colorScheme.outline),
                 ),
                 child: _photoPath != null
                     ? const Center(child: Icon(Icons.check_circle, color: AppTheme.success, size: 48))
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.add_photo_alternate_outlined, size: 40, color: Colors.grey.shade500),
+                          Icon(Icons.add_photo_alternate_outlined, size: 40, color: theme.colorScheme.onSurfaceVariant),
                           const SizedBox(height: 8),
-                          Text('Tap to upload photo', style: TextStyle(color: Colors.grey.shade600)),
+                          Text('Tap to upload photo', style: TextStyle(color: theme.colorScheme.onSurfaceVariant)),
                         ],
                       ),
               ),
@@ -416,8 +412,7 @@ class _AdminAuditPanelScreenState extends ConsumerState<AdminAuditPanelScreen> {
     final theme = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: Colors.white,
-      appBar: AppBar(title: const Text('Admin Audit Panel'), elevation: 0, backgroundColor: Colors.white),
+      appBar: AppBar(title: const Text('Admin Audit Panel'), elevation: 0),
       body: _loading
           ? const Padding(padding: EdgeInsets.all(16), child: SkeletonList(items: 5, itemHeight: 60))
           : _error != null

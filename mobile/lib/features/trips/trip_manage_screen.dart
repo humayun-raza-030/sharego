@@ -60,16 +60,14 @@ class _TripManageScreenState extends ConsumerState<TripManageScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text('My Trips'),
         centerTitle: true,
-        backgroundColor: Colors.white,
         elevation: 0,
         actions: [
           IconButton(
             tooltip: 'Help',
-            icon: const Icon(Icons.help_outline, color: Colors.black87),
+            icon: const Icon(Icons.help_outline),
             onPressed: () => Coach.show(
               context,
               force: true,
@@ -172,9 +170,9 @@ class _TripCard extends StatelessWidget {
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: Theme.of(context).colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE0E2EB)),
+          border: Border.all(color: Theme.of(context).dividerColor),
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -199,13 +197,13 @@ class _TripCard extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 4),
-            Text(date, style: theme.textTheme.bodySmall?.copyWith(color: Colors.black54)),
+            Text(date, style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant)),
             if (hasFlightInfo) ...[
               const SizedBox(height: 4),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F4FF),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Text(
@@ -229,7 +227,7 @@ class _TripCard extends StatelessWidget {
             const SizedBox(height: 10),
             Row(
               children: [
-                const Icon(Icons.flight_takeoff, size: 18, color: Colors.black54),
+                Icon(Icons.flight_takeoff, size: 18, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Expanded(child: Text(origin, style: theme.textTheme.bodySmall)),
               ],
@@ -237,7 +235,7 @@ class _TripCard extends StatelessWidget {
             const SizedBox(height: 6),
             Row(
               children: [
-                const Icon(Icons.flight_land, size: 18, color: Colors.black54),
+                Icon(Icons.flight_land, size: 18, color: theme.colorScheme.onSurfaceVariant),
                 const SizedBox(width: 6),
                 Expanded(child: Text(dest, style: theme.textTheme.bodySmall)),
               ],
@@ -258,9 +256,9 @@ class _Pill extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
       decoration: BoxDecoration(
-        color: const Color(0xFFF7F8FC),
+        color: Theme.of(context).colorScheme.surfaceContainerLow,
         borderRadius: BorderRadius.circular(20),
-        border: Border.all(color: const Color(0xFFE0E2EB)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Text(
         text,
@@ -310,7 +308,7 @@ class _EmptyState extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Icon(Icons.flight_takeoff, size: 48, color: Colors.black45),
+            Icon(Icons.flight_takeoff, size: 48, color: Theme.of(context).colorScheme.onSurfaceVariant),
             const SizedBox(height: 12),
             const Text('No trips yet', style: TextStyle(fontWeight: FontWeight.w700)),
             const SizedBox(height: 4),

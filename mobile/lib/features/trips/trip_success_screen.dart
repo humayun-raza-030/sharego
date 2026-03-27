@@ -19,7 +19,6 @@ class TripSuccessScreen extends ConsumerWidget {
     final capacity = '${draft.capacityKg.isEmpty ? '-' : draft.capacityKg} kg - Rs. ${draft.feePerKg.isEmpty ? '-' : draft.feePerKg}/kg';
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -51,9 +50,9 @@ class TripSuccessScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: AppTheme.surface,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE0E2EB)),
+                  border: Border.all(color: theme.dividerColor),
                 ),
                 child: Column(
                   children: [
@@ -74,7 +73,7 @@ class TripSuccessScreen extends ConsumerWidget {
                             children: [
                               Text(tripId, style: theme.textTheme.bodyMedium),
                               const SizedBox(width: 4),
-                              const Icon(Icons.copy, size: 14, color: Colors.black45),
+                              Icon(Icons.copy, size: 14, color: theme.colorScheme.onSurfaceVariant),
                             ],
                           ),
                         ],

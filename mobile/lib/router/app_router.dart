@@ -21,6 +21,7 @@ import '../features/trips/trip_flight_screen.dart';
 import '../features/trips/trip_capacity_screen.dart';
 import '../features/trips/trip_summary_screen.dart';
 import '../features/trips/trip_manage_screen.dart';
+import '../features/trips/saved_trips_screen.dart';
 import '../features/trips/trip_edit_screen.dart';
 import '../features/trips/trip_success_screen.dart';
 import '../features/trips/trip_under_review_screen.dart';
@@ -151,6 +152,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'trip/manage',
                 builder: (context, state) => const TripManageScreen(),
+              ),
+              GoRoute(
+                path: 'saved-trips',
+                builder: (context, state) => const SavedTripsScreen(),
               ),
               GoRoute(
                 path: 'trip/:id/edit',

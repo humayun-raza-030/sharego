@@ -150,19 +150,18 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
     final dateLabel = DateFormat('EEE, dd MMM yyyy').format(_selectedDate);
     final airportRepo = ref.watch(airportRepositoryProvider);
 
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: Icon(Icons.arrow_back_ios_new, color: AppTheme.textPrimary),
+          icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
-        backgroundColor: Colors.white,
         actions: [
           IconButton(
             tooltip: 'Help',
-            icon: Icon(Icons.help_outline, color: AppTheme.textPrimary),
+            icon: Icon(Icons.help_outline, color: theme.colorScheme.onSurface),
             onPressed: () => Coach.show(
               context,
               force: true,
@@ -177,7 +176,7 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
             ),
           ),
           IconButton(
-            icon: Icon(Icons.share, color: AppTheme.textPrimary),
+            icon: Icon(Icons.share, color: theme.colorScheme.onSurface),
             onPressed: () {},
           ),
         ],
@@ -193,12 +192,12 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
                 style: TextStyle(
                   fontSize: 20,
                   fontWeight: FontWeight.w700,
-                  color: AppTheme.textPrimary,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 8),
               Card(
-                color: AppTheme.surface,
+                color: theme.colorScheme.surfaceContainerLow,
                 shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12)),
                 child: Padding(
@@ -273,7 +272,7 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
                 decoration: BoxDecoration(
-                  color: Colors.white,
+                  color: theme.colorScheme.surface,
                   borderRadius: BorderRadius.circular(12),
                 ),
                 child: Column(
@@ -364,15 +363,15 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(8),
                             border: Border.all(
-                              color: const Color(0xFFE0E2EB),
+                              color: theme.dividerColor,
                             ),
-                            color: Colors.white,
+                            color: theme.colorScheme.surface,
                           ),
                           child: Text(
                             '${_weight.toStringAsFixed(1)} KG',
                             style: TextStyle(
                               fontSize: 13,
-                              color: AppTheme.textPrimary,
+                              color: theme.colorScheme.onSurface,
                             ),
                           ),
                         ),
@@ -431,6 +430,7 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
                     final flightNumber = t['flight_number']?.toString() ?? '';
                     return _TravelerCard(
                       key: entry.key == 0 ? _travelerCardKey : null,
+                      tripId: t['id'] as int? ?? 0,
                       name: 'Traveler #${t['user_id'] ?? t['id']}',
                       route: '$origin → $dest',
                       rating: '$capacityKg kg',
@@ -458,7 +458,7 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
   }
 }
 
-class _TravelerCard extends StatelessWidget {
+class _TravelerCard extends ConsumerStatefulWidget {
   final String name;
   final String route;
   final String rating;
@@ -466,6 +466,7 @@ class _TravelerCard extends StatelessWidget {
   final Color color;
   final String airline;
   final String flightNumber;
+  final int tripId;
   final VoidCallback onTap;
 
   const _TravelerCard({
@@ -476,21 +477,30 @@ class _TravelerCard extends StatelessWidget {
     required this.reviews,
     required this.color,
     required this.onTap,
+    required this.tripId,
     this.airline = '',
     this.flightNumber = '',
   });
 
   @override
+  ConsumerState<_TravelerCard> createState() => _TravelerCardState();
+}
+
+class _TravelerCardState extends ConsumerState<_TravelerCard> {
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final savedTrips = ref.read(savedTripsServiceProvider);
+    final isSaved = savedTrips.isSaved(widget.tripId);
     return Padding(
       padding: const EdgeInsets.only(bottom: 10.0),
       child: GestureDetector(
-        onTap: onTap,
+        onTap: widget.onTap,
         child: Container(
           decoration: BoxDecoration(
-            color: Colors.white,
+            color: theme.colorScheme.surface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: const Color(0xFFE0E2EB)),
+            border: Border.all(color: theme.dividerColor),
           ),
           padding: const EdgeInsets.all(12),
           child: Row(
@@ -499,10 +509,10 @@ class _TravelerCard extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: color.withValues(alpha: 0.15),
+                  color: widget.color.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(8),
                 ),
-                child: Icon(Icons.flight_takeoff, color: color, size: 22),
+                child: Icon(Icons.flight_takeoff, color: widget.color, size: 22),
               ),
               const SizedBox(width: 12),
               Expanded(
@@ -510,7 +520,7 @@ class _TravelerCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      name,
+                      widget.name,
                       style: const TextStyle(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
@@ -518,20 +528,20 @@ class _TravelerCard extends StatelessWidget {
                     ),
                     const SizedBox(height: 4),
                     Text(
-                      route,
-                      style: const TextStyle(
+                      widget.route,
+                      style: TextStyle(
                         fontSize: 12,
-                        color: Colors.black54,
+                        color: theme.colorScheme.onSurfaceVariant,
                       ),
                     ),
-                    if (flightNumber.isNotEmpty) ...[
+                    if (widget.flightNumber.isNotEmpty) ...[
                       const SizedBox(height: 3),
                       Row(
                         children: [
                           const Icon(Icons.flight, size: 13, color: AppTheme.primary),
                           const SizedBox(width: 4),
                           Text(
-                            '${airline.isNotEmpty ? '$airline ' : ''}$flightNumber',
+                            '${widget.airline.isNotEmpty ? '${widget.airline} ' : ''}${widget.flightNumber}',
                             style: const TextStyle(fontSize: 11, fontWeight: FontWeight.w600, color: AppTheme.primary),
                           ),
                         ],
@@ -547,18 +557,18 @@ class _TravelerCard extends StatelessWidget {
                         ),
                         const SizedBox(width: 4),
                         Text(
-                          rating,
+                          widget.rating,
                           style: TextStyle(
                             fontSize: 12,
-                            color: AppTheme.textPrimary,
+                            color: theme.colorScheme.onSurface,
                           ),
                         ),
                         const SizedBox(width: 8),
                         Text(
-                          reviews,
-                          style: const TextStyle(
+                          widget.reviews,
+                          style: TextStyle(
                             fontSize: 11,
-                            color: Colors.black45,
+                            color: theme.colorScheme.onSurfaceVariant,
                           ),
                         ),
                       ],
@@ -566,10 +576,16 @@ class _TravelerCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const Icon(
-                Icons.bookmark_border,
-                size: 22,
-                color: Colors.black45,
+              GestureDetector(
+                onTap: () async {
+                  await savedTrips.toggle(widget.tripId);
+                  setState(() {});
+                },
+                child: Icon(
+                  isSaved ? Icons.bookmark : Icons.bookmark_border,
+                  size: 22,
+                  color: isSaved ? AppTheme.primary : theme.colorScheme.onSurfaceVariant,
+                ),
               ),
             ],
           ),

@@ -8,13 +8,16 @@ from app.domain.bookings.service import (
     accept_booking as accept_booking_service,
     cancel_booking as cancel_booking_service,
     create_booking as create_booking_service,
+    create_booking_update as create_booking_update_service,
     decline_booking as decline_booking_service,
     expire_booking_manual,
     get_booking as get_booking_service,
+    list_booking_updates as list_booking_updates_service,
     list_bookings_for_user,
 )
 from app.domain.handover.service import verify_delivery, verify_pickup
 from app.models import User
+from app.schemas.booking_updates import BookingUpdateCreate, BookingUpdateRead
 from app.schemas.bookings import BookingCreate, BookingRead, BookingVerifyDelivery, BookingVerifyPickup
 
 router = APIRouter(prefix="/bookings", tags=["bookings"])
@@ -178,3 +181,34 @@ async def delivery_verify(
         request_id=request_id,
     )
     return get_booking_service(session, booking_id=booking_id, actor_id=user.id, is_admin=_is_admin(user))
+
+
+@router.post("/{booking_id}/updates", response_model=BookingUpdateRead, status_code=201)
+async def post_booking_update(
+    booking_id: int,
+    payload: BookingUpdateCreate,
+    session: Session = Depends(get_session_dep),
+    user: User = Depends(get_current_user_dep),
+    request_id: str = Depends(get_request_id_dep),
+):
+    return create_booking_update_service(
+        session,
+        booking_id=booking_id,
+        user_id=user.id,
+        data=payload,
+        request_id=request_id,
+    )
+
+
+@router.get("/{booking_id}/updates", response_model=list[BookingUpdateRead])
+async def get_booking_updates(
+    booking_id: int,
+    session: Session = Depends(get_session_dep),
+    user: User = Depends(get_current_user_dep),
+):
+    return list_booking_updates_service(
+        session,
+        booking_id=booking_id,
+        actor_id=user.id,
+        is_admin=_is_admin(user),
+    )

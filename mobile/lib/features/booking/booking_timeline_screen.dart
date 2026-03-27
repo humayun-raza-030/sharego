@@ -18,23 +18,51 @@ class BookingTimelineScreen extends ConsumerStatefulWidget {
 
 class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
   Map<String, dynamic>? _booking;
+  List<Map<String, dynamic>> _updates = [];
   bool _loading = true;
   String? _error;
+  int? _currentUserId;
+
+  bool get _isTraveler {
+    if (_currentUserId == null || _booking == null) return false;
+    final tid = _booking!['traveler_id'];
+    if (tid == null) return false;
+    return (tid is int ? tid : int.tryParse(tid.toString())) == _currentUserId;
+  }
 
   @override
   void initState() {
     super.initState();
-    _loadBooking();
+    _loadAll();
   }
 
-  Future<void> _loadBooking() async {
+  Future<void> _loadAll() async {
     setState(() { _loading = true; _error = null; });
     try {
       final bookingId = int.tryParse(widget.id);
       if (bookingId == null) throw Exception('Invalid booking ID');
       final service = ref.read(featureAServiceProvider);
-      final result = await service.getBooking(bookingId);
-      if (mounted) setState(() { _booking = result; _loading = false; });
+      final profileService = ref.read(profileServiceProvider);
+
+      final results = await Future.wait([
+        service.getBooking(bookingId),
+        profileService.getMe(),
+      ]);
+
+      // Fetch updates separately so failure doesn't block main view
+      List<Map<String, dynamic>> updates = [];
+      try {
+        updates = await service.listBookingUpdates(bookingId);
+      } catch (_) {}
+
+      if (mounted) {
+        setState(() {
+          _booking = results[0];
+          _currentUserId = results[1]['id'] as int?;
+          _updates = updates;
+          _loading = false;
+        });
+      }
     } catch (e) {
       if (mounted) setState(() { _error = e.toString(); _loading = false; });
     }
@@ -98,6 +126,76 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
     }
   }
 
+  Future<void> _showPostUpdateDialog() async {
+    String selectedType = 'picked_up';
+    final noteCtrl = TextEditingController();
+    final types = {
+      'picked_up': 'Picked up item',
+      'at_airport': 'At the airport',
+      'in_transit': 'In transit / On flight',
+      'arrived': 'Arrived in destination',
+      'custom': 'Custom note',
+    };
+
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setDialogState) => AlertDialog(
+          title: const Text('Post Status Update'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DropdownButtonFormField<String>(
+                value: selectedType,
+                decoration: const InputDecoration(labelText: 'Status', isDense: true),
+                items: types.entries
+                    .map((e) => DropdownMenuItem(value: e.key, child: Text(e.value)))
+                    .toList(),
+                onChanged: (v) => setDialogState(() => selectedType = v ?? 'custom'),
+              ),
+              const SizedBox(height: 10),
+              TextField(
+                controller: noteCtrl,
+                decoration: const InputDecoration(labelText: 'Note (optional)', isDense: true),
+                maxLines: 2,
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancel')),
+            ElevatedButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Post')),
+          ],
+        ),
+      ),
+    );
+
+    if (result != true) return;
+    try {
+      final service = ref.read(featureAServiceProvider);
+      await service.postBookingUpdate(
+        int.parse(widget.id),
+        updateType: selectedType,
+        note: noteCtrl.text.trim().isNotEmpty ? noteCtrl.text.trim() : null,
+      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Status update posted')));
+      }
+      await _loadAll();
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed: ${e.toString()}')));
+      }
+    }
+  }
+
+  static const _updateTypeLabels = {
+    'picked_up': 'Picked Up Item',
+    'at_airport': 'At Airport',
+    'in_transit': 'In Transit',
+    'arrived': 'Arrived in City',
+    'custom': 'Traveler Note',
+  };
+
   List<Map<String, String>> _buildTimeline(Map<String, dynamic> b) {
     final status = b['status']?.toString() ?? '';
     final amount = b['amount'];
@@ -112,6 +210,17 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
     if (['ACCEPTED', 'PICKUP_OK', 'DELIVERY_OK', 'RELEASED'].contains(status)) {
       items.add({'title': 'Traveler Accepted', 'subtitle': 'Traveler confirmed the job', 'icon': 'done'});
     }
+
+    // Interleave traveler status updates (only relevant between ACCEPTED and PICKUP_OK/DELIVERY_OK)
+    for (final u in _updates) {
+      final type = u['update_type']?.toString() ?? 'custom';
+      final note = u['note']?.toString() ?? '';
+      final label = _updateTypeLabels[type] ?? type.replaceAll('_', ' ');
+      final ts = u['created_at']?.toString();
+      final subtitle = note.isNotEmpty ? note : (ts != null ? timeAgo(ts) : '');
+      items.add({'title': label, 'subtitle': subtitle, 'icon': 'update'});
+    }
+
     if (['PICKUP_OK', 'DELIVERY_OK', 'RELEASED'].contains(status)) {
       items.add({'title': 'Pickup Verified', 'subtitle': 'OTP confirmed at pickup', 'icon': 'done'});
     }
@@ -156,7 +265,7 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
             children: [
               ErrorBanner(_error ?? 'Booking not found'),
               const SizedBox(height: 8),
-              ElevatedButton(onPressed: _loadBooking, child: const Text('Retry')),
+              ElevatedButton(onPressed: _loadAll, child: const Text('Retry')),
             ],
           ),
         ),
@@ -168,13 +277,12 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
     final timeline = _buildTimeline(b);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         title: Text('Booking #${widget.id}'),
         actions: [
           TextButton(
             onPressed: () => context.push('/audit/report/new'),
-            child: const Text('Report Issue', style: TextStyle(color: Color(0xFFD64550))),
+            child: Text('Report Issue', style: TextStyle(color: Theme.of(context).colorScheme.error)),
           ),
         ],
       ),
@@ -208,9 +316,16 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
                 itemCount: timeline.length,
                 itemBuilder: (context, i) {
                   final e = timeline[i];
-                  final isDone = e['icon'] == 'done';
+                  final iconType = e['icon'] ?? 'done';
                   final isLast = i == timeline.length - 1;
-                  final dotColor = isDone ? AppTheme.success : AppTheme.danger;
+                  final Color dotColor;
+                  if (iconType == 'done') {
+                    dotColor = AppTheme.success;
+                  } else if (iconType == 'update') {
+                    dotColor = AppTheme.primary;
+                  } else {
+                    dotColor = AppTheme.danger;
+                  }
                   return IntrinsicHeight(
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -224,7 +339,8 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
                                 height: 14,
                                 decoration: BoxDecoration(
                                   color: dotColor,
-                                  shape: BoxShape.circle,
+                                  shape: iconType == 'update' ? BoxShape.rectangle : BoxShape.circle,
+                                  borderRadius: iconType == 'update' ? BorderRadius.circular(3) : null,
                                   border: Border.all(color: dotColor.withValues(alpha: 0.3), width: 3),
                                 ),
                               ),
@@ -244,7 +360,13 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                Text(e['title'] ?? '', style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700)),
+                                Text(
+                                  e['title'] ?? '',
+                                  style: theme.textTheme.titleSmall?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: iconType == 'update' ? AppTheme.primary : null,
+                                  ),
+                                ),
                                 const SizedBox(height: 2),
                                 Text(e['subtitle'] ?? '', style: theme.textTheme.bodySmall),
                               ],
@@ -257,13 +379,14 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
                 },
               ),
             ),
+
+            // Action buttons
             const SizedBox(height: 12),
             Row(
               children: [
                 if (['ACCEPTED'].contains(status))
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(),
                       onPressed: () => context.push('/booking/${widget.id}/pickup-otp'),
                       child: const Text('Pickup OTP'),
                     ),
@@ -273,15 +396,44 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
                 if (['PICKUP_OK'].contains(status))
                   Expanded(
                     child: ElevatedButton(
-                      style: ElevatedButton.styleFrom(),
                       onPressed: () => context.push('/booking/${widget.id}/delivery-otp'),
                       child: const Text('Delivery OTP'),
                     ),
                   ),
               ],
             ),
+
+            // Post status update (traveler only, active bookings)
+            if (_isTraveler && ['ACCEPTED', 'PICKUP_OK'].contains(status)) ...[
+              const SizedBox(height: 10),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.update),
+                  label: const Text('Post Status Update'),
+                  onPressed: _showPostUpdateDialog,
+                ),
+              ),
+            ],
+
+            // Chat with counterparty
+            if (!['CANCELLED', 'EXPIRED'].contains(status)) ...[
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  icon: const Icon(Icons.chat_bubble_outline),
+                  label: Text('Chat with ${_isTraveler ? "Buyer" : "Traveler"}'),
+                  onPressed: () {
+                    final peerId = _isTraveler ? b['buyer_id'] : b['traveler_id'];
+                    context.push('/chat/$peerId', extra: {'booking_id': int.tryParse(widget.id)});
+                  },
+                ),
+              ),
+            ],
+
             if (status == 'RELEASED') ...[
-              const SizedBox(height: 12),
+              const SizedBox(height: 10),
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(

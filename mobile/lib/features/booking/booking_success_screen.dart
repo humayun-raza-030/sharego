@@ -23,7 +23,6 @@ class BookingSuccessScreen extends ConsumerWidget {
     final bookingRef = bookingId == null ? '-' : 'BKG-$bookingId';
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -94,9 +93,9 @@ class BookingSuccessScreen extends ConsumerWidget {
               Container(
                 padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF7F8FC),
+                  color: theme.colorScheme.surfaceContainerLow,
                   borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFFE0E2EB)),
+                  border: Border.all(color: theme.dividerColor),
                 ),
                 child: Column(
                   children: [
@@ -117,7 +116,7 @@ class BookingSuccessScreen extends ConsumerWidget {
                             children: [
                               Text(bookingRef, style: theme.textTheme.bodyMedium),
                               const SizedBox(width: 4),
-                              const Icon(Icons.copy, size: 14, color: Colors.black45),
+                              Icon(Icons.copy, size: 14, color: theme.colorScheme.onSurfaceVariant),
                             ],
                           ),
                         ],
@@ -137,9 +136,9 @@ class BookingSuccessScreen extends ConsumerWidget {
                   width: double.infinity,
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
-                    color: const Color(0xFFFFF7E7),
+                    color: AppTheme.amber.withValues(alpha: 0.16),
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: const Color(0xFFF5D48A)),
+                    border: Border.all(color: AppTheme.amber.withValues(alpha: 0.6)),
                   ),
                   child: Text(
                     'Dev OTPs: pickup ${draft.pickupOtpDev ?? '-'} | delivery ${draft.deliveryOtpDev ?? '-'}',

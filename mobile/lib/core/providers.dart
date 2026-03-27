@@ -1,4 +1,5 @@
 import 'package:dio/dio.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../config/env.dart';
@@ -15,6 +16,20 @@ import 'airport_repository.dart';
 import 'location_service.dart';
 import 'api_client.dart';
 import 'auth_storage.dart';
+import 'saved_trips_service.dart';
+
+final themeModeProvider = NotifierProvider<ThemeModeNotifier, ThemeMode>(
+  ThemeModeNotifier.new,
+);
+
+class ThemeModeNotifier extends Notifier<ThemeMode> {
+  ThemeMode? initialMode;
+
+  @override
+  ThemeMode build() => initialMode ?? ThemeMode.system;
+
+  void set(ThemeMode mode) => state = mode;
+}
 
 final envConfigProvider = Provider<EnvConfig>((ref) {
   throw UnimplementedError('envConfigProvider must be overridden in main.dart');
@@ -68,6 +83,15 @@ final aiServiceProvider = Provider<AiService>((ref) {
   return AiService(dio);
 });
 
+final aiChatHistoryProvider = Provider<List<AiChatMsg>>((ref) => [
+  AiChatMsg(
+    isUser: false,
+    text: "Hi! I'm your ShareGo assistant. Ask me about escrow, bookings, "
+        "marketplace rules, shipping policies, travel safety, or what items "
+        "you can courier from different countries.",
+  ),
+]);
+
 final chatServiceProvider = Provider<ChatService>((ref) {
   final dio = ref.watch(dioProvider);
   return ChatService(dio);
@@ -76,4 +100,8 @@ final chatServiceProvider = Provider<ChatService>((ref) {
 final walletServiceProvider = Provider<WalletService>((ref) {
   final dio = ref.watch(dioProvider);
   return WalletService(dio);
+});
+
+final savedTripsServiceProvider = Provider<SavedTripsService>((ref) {
+  throw UnimplementedError('Override in main.dart');
 });

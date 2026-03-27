@@ -1,5 +1,14 @@
 import 'package:dio/dio.dart';
 
+class AiChatMsg {
+  AiChatMsg({required this.isUser, required this.text, this.source, this.data});
+
+  final bool isUser;
+  final String text;
+  final String? source;
+  final Map<String, dynamic>? data;
+}
+
 class AiService {
   AiService(this._dio);
 

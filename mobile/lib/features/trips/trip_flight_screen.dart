@@ -138,14 +138,12 @@ class _TripFlightScreenState extends ConsumerState<TripFlightScreen> {
     final airlineRepo = ref.watch(airlineRepositoryProvider);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
-        backgroundColor: Colors.white,
         title: const Text('Trip setup'),
         bottom: PreferredSize(
           preferredSize: const Size.fromHeight(0),
@@ -157,7 +155,7 @@ class _TripFlightScreenState extends ConsumerState<TripFlightScreen> {
         actions: [
           IconButton(
             tooltip: 'Help',
-            icon: const Icon(Icons.help_outline, color: Colors.black87),
+            icon: Icon(Icons.help_outline, color: theme.colorScheme.onSurface),
             onPressed: () => Coach.show(
               context,
               force: true,
@@ -268,10 +266,10 @@ class _TripFlightScreenState extends ConsumerState<TripFlightScreen> {
                 _FieldLabel('Date of flight'),
                 Card(
                   key: _dateKey,
-                  color: const Color(0xFFF7F8FC),
+                  color: theme.colorScheme.surfaceContainerLow,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(10),
-                    side: const BorderSide(color: Color(0xFFE0E2EB)),
+                    side: BorderSide(color: theme.dividerColor),
                   ),
                   child: ListTile(
                     contentPadding:
@@ -373,7 +371,7 @@ class _TripFlightScreenState extends ConsumerState<TripFlightScreen> {
         border: OutlineInputBorder(borderRadius: BorderRadius.circular(10)),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
-          borderSide: const BorderSide(color: Color(0xFFE0E2EB)),
+          borderSide: BorderSide(color: Theme.of(context).dividerColor),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(10),
@@ -394,9 +392,9 @@ class _SectionCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppTheme.surface,
+        color: Theme.of(context).colorScheme.surface,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: const Color(0xFFE0E2EB)),
+        border: Border.all(color: Theme.of(context).dividerColor),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -426,8 +424,8 @@ class _FieldLabel extends StatelessWidget {
       padding: const EdgeInsets.only(bottom: 6),
       child: Text(
         text,
-        style: const TextStyle(
-            fontSize: 13, fontWeight: FontWeight.w700, color: Colors.black87),
+        style: TextStyle(
+            fontSize: 13, fontWeight: FontWeight.w700, color: Theme.of(context).colorScheme.onSurface),
       ),
     );
   }

@@ -5,6 +5,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 
 import '../../core/app_theme.dart';
 import '../../core/providers.dart';
+import 'ai_service.dart';
 
 class AiChatScreen extends ConsumerStatefulWidget {
   const AiChatScreen({super.key});
@@ -18,13 +19,7 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   final _scrollController = ScrollController();
   bool _sending = false;
 
-  final List<_ChatMsg> _messages = [
-    _ChatMsg(
-      from: _Sender.ai,
-      text: 'Hi! I\'m your ShareGo assistant. Ask me about escrow, bookings, '
-          'marketplace rules, shipping policies, or your account data.',
-    ),
-  ];
+  List<AiChatMsg> get _messages => ref.read(aiChatHistoryProvider);
 
   static const _quickChips = [
     'What is escrow?',
@@ -36,12 +31,18 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     'Marketplace rules',
   ];
 
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) => _scrollToBottom());
+  }
+
   Future<void> _send(String text) async {
     final trimmed = text.trim();
     if (trimmed.isEmpty) return;
 
     setState(() {
-      _messages.add(_ChatMsg(from: _Sender.user, text: trimmed));
+      _messages.add(AiChatMsg(isUser: true, text: trimmed));
       _sending = true;
     });
     _controller.clear();
@@ -58,15 +59,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           .toList()
           .reversed
           .map((m) => {
-                'role': m.from == _Sender.user ? 'user' : 'assistant',
+                'role': m.isUser ? 'user' : 'assistant',
                 'content': m.text,
               })
           .toList();
       final result = await service.chat(trimmed, history: history);
       if (mounted) {
         setState(() {
-          _messages.add(_ChatMsg(
-            from: _Sender.ai,
+          _messages.add(AiChatMsg(
+            isUser: false,
             text: result['reply']?.toString() ?? 'No response.',
             source: result['source']?.toString(),
             data: result['data'] as Map<String, dynamic>?,
@@ -78,8 +79,8 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
     } catch (e) {
       if (mounted) {
         setState(() {
-          _messages.add(_ChatMsg(
-            from: _Sender.ai,
+          _messages.add(AiChatMsg(
+            isUser: false,
             text: 'Sorry, something went wrong. Please try again.',
           ));
           _sending = false;
@@ -146,11 +147,11 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               itemCount: _messages.length + (_sending ? 1 : 0),
               itemBuilder: (context, i) {
-                if (i == _messages.length) {
-                  // Typing indicator.
+                final msgs = _messages;
+                if (i == msgs.length) {
                   return const _TypingBubble();
                 }
-                final msg = _messages[i];
+                final msg = msgs[i];
                 return _MessageBubble(msg: msg);
               },
             ),
@@ -196,28 +197,15 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
   }
 }
 
-// ── Data models ──────────────────────────────────────────────────────
-
-enum _Sender { user, ai }
-
-class _ChatMsg {
-  _ChatMsg({required this.from, required this.text, this.source, this.data});
-
-  final _Sender from;
-  final String text;
-  final String? source;
-  final Map<String, dynamic>? data;
-}
-
 // ── Widgets ──────────────────────────────────────────────────────────
 
 class _MessageBubble extends StatelessWidget {
   const _MessageBubble({required this.msg});
-  final _ChatMsg msg;
+  final AiChatMsg msg;
 
   @override
   Widget build(BuildContext context) {
-    final isUser = msg.from == _Sender.user;
+    final isUser = msg.isUser;
     final bubble = Container(
       padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
       constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.72),

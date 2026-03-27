@@ -402,8 +402,6 @@ def list_offers_for_listing(session: Session, *, listing_id: int, user_id: int) 
         .where(MarketOffer.listing_id == listing_id, MarketOffer.from_user_id == user_id)
         .order_by(MarketOffer.ts.asc())
     ).all()
-    if not offers:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only participants can view offer thread")
     return [_to_offer_read(item) for item in offers]
 
 

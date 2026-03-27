@@ -139,14 +139,13 @@ class _MarketplaceListScreenState extends ConsumerState<MarketplaceListScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         title: const Text('Marketplace'),
         actions: [
           IconButton(
             tooltip: 'Help',
-            icon: const Icon(Icons.help_outline, color: Colors.black87),
+            icon: Icon(Icons.help_outline, color: Theme.of(context).colorScheme.onSurfaceVariant),
             onPressed: () => Coach.show(
               context,
               force: true,
@@ -220,7 +219,7 @@ class _MarketplaceListScreenState extends ConsumerState<MarketplaceListScreen> {
                       Padding(
                         padding: const EdgeInsets.only(right: 8),
                         child: FilterChip(
-                          avatar: Icon(Icons.near_me, size: 16, color: _nearbyMode ? AppTheme.primary : Colors.black45),
+                          avatar: Icon(Icons.near_me, size: 16, color: _nearbyMode ? AppTheme.primary : Theme.of(context).colorScheme.onSurfaceVariant),
                           label: const Text('Nearby'),
                           selected: _nearbyMode,
                           onSelected: (v) {
@@ -229,7 +228,7 @@ class _MarketplaceListScreenState extends ConsumerState<MarketplaceListScreen> {
                           },
                           selectedColor: AppTheme.primary.withValues(alpha: 0.12),
                           checkmarkColor: AppTheme.primary,
-                          shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
+                          shape: StadiumBorder(side: BorderSide(color: Theme.of(context).dividerColor)),
                         ),
                       ),
                     ..._categories.map((cat) {
@@ -242,7 +241,7 @@ class _MarketplaceListScreenState extends ConsumerState<MarketplaceListScreen> {
                           onSelected: (_) => _onCategorySelected(cat),
                           selectedColor: AppTheme.primary.withValues(alpha: 0.12),
                           checkmarkColor: AppTheme.primary,
-                          shape: StadiumBorder(side: BorderSide(color: Colors.grey.shade300)),
+                          shape: StadiumBorder(side: BorderSide(color: Theme.of(context).dividerColor)),
                         ),
                       );
                     }),
@@ -379,10 +378,10 @@ class _SearchBar extends StatelessWidget {
         hintText: 'Search items, categories, locations',
         prefixIcon: const Icon(Icons.search),
         filled: true,
-        fillColor: const Color(0xFFF7F8FC),
+        fillColor: Theme.of(context).colorScheme.surfaceContainerLow,
         contentPadding: const EdgeInsets.symmetric(vertical: 12),
-        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E2EB))),
-        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: Color(0xFFE0E2EB))),
+        border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor)),
+        enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide(color: Theme.of(context).dividerColor)),
         focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: const BorderSide(color: AppTheme.primary)),
       ),
     );
@@ -423,9 +422,9 @@ class _ListingCard extends StatelessWidget {
       child: Container(
         margin: const EdgeInsets.only(bottom: 12),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: theme.colorScheme.surface,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: const Color(0xFFE0E2EB)),
+          border: Border.all(color: theme.dividerColor),
           boxShadow: [
             BoxShadow(color: Colors.black.withValues(alpha: 0.06), blurRadius: 8, offset: const Offset(0, 4)),
           ],
@@ -438,7 +437,7 @@ class _ListingCard extends StatelessWidget {
               margin: const EdgeInsets.all(12),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(12),
-                color: const Color(0xFFF7F8FC),
+                color: theme.colorScheme.surfaceContainerLow,
               ),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(12),
@@ -449,9 +448,9 @@ class _ListingCard extends StatelessWidget {
                         width: 86,
                         height: 86,
                         errorBuilder: (_, __, ___) =>
-                            const Icon(Icons.image_outlined, size: 36, color: Colors.black26),
+                            Icon(Icons.image_outlined, size: 36, color: theme.colorScheme.onSurfaceVariant),
                       )
-                    : const Icon(Icons.image_outlined, size: 36, color: Colors.black26),
+                    : Icon(Icons.image_outlined, size: 36, color: theme.colorScheme.onSurfaceVariant),
               ),
             ),
             Expanded(
@@ -464,7 +463,7 @@ class _ListingCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(price, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.primary)),
                     const SizedBox(height: 4),
-                    Text(location, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                    Text(location, style: TextStyle(fontSize: 12, color: theme.colorScheme.onSurfaceVariant)),
                     const SizedBox(height: 8),
                     Row(
                       children: [

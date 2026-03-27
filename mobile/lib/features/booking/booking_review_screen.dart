@@ -165,15 +165,14 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
     final hasEnough = _walletBalance != null && _walletBalance! >= price;
     final balanceAfter = (_walletBalance ?? 0) - price;
 
+    final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
-        backgroundColor: Colors.white,
       ),
       body: SafeArea(
         child: Padding(
@@ -181,12 +180,12 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
-              const Text(
+              Text(
                 'Review & Confirm',
                 style: TextStyle(
                   fontSize: 24,
                   fontWeight: FontWeight.w800,
-                  color: Colors.black87,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 18),
@@ -195,12 +194,12 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         'Summary',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -208,9 +207,9 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF7F8FC),
+                          color: theme.colorScheme.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE0E2EB)),
+                          border: Border.all(color: theme.dividerColor),
                         ),
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -233,12 +232,12 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                       const SizedBox(height: 20),
 
                       // Payment Summary
-                      const Text(
+                      Text(
                         'Payment Summary',
                         style: TextStyle(
                           fontSize: 16,
                           fontWeight: FontWeight.w700,
-                          color: Colors.black87,
+                          color: theme.colorScheme.onSurface,
                         ),
                       ),
                       const SizedBox(height: 12),
@@ -246,9 +245,9 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                         width: double.infinity,
                         padding: const EdgeInsets.all(16),
                         decoration: BoxDecoration(
-                          color: const Color(0xFFF7F8FC),
+                          color: theme.colorScheme.surfaceContainerLow,
                           borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE0E2EB)),
+                          border: Border.all(color: theme.dividerColor),
                         ),
                         child: _loadingBalance
                             ? const Center(child: Padding(

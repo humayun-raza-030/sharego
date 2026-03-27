@@ -110,15 +110,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
     final tripId = int.tryParse(widget.id);
 
     return Scaffold(
-      backgroundColor: Colors.white,
       appBar: AppBar(
         elevation: 0,
-        backgroundColor: Colors.white,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
+          icon: Icon(Icons.arrow_back_ios_new, color: theme.colorScheme.onSurface),
           onPressed: () => context.pop(),
         ),
-        title: Text('Trip ${widget.id}', style: const TextStyle(color: Colors.black87)),
+        title: Text('Trip ${widget.id}'),
         centerTitle: true,
       ),
       body: _loading
@@ -177,16 +175,16 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
         Container(
           width: double.infinity,
           padding: const EdgeInsets.all(16),
-          decoration: _card,
+          decoration: _cardDecoration(context),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
                 '$origin → $dest',
-                style: const TextStyle(
+                style: TextStyle(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
-                  color: Colors.black87,
+                  color: theme.colorScheme.onSurface,
                 ),
               ),
               const SizedBox(height: 6),
@@ -194,12 +192,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
                 flightLabel.isNotEmpty
                     ? '$dateFormatted | $flightLabel'
                     : dateFormatted,
-                style: const TextStyle(fontSize: 13, color: Colors.black54),
+                style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
               ),
               const SizedBox(height: 10),
               Text(
                 'Capacity: $capacity kg | Rate: PKR $fee per kg',
-                style: const TextStyle(fontSize: 13, color: Colors.black87),
+                style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface),
               ),
             ],
           ),
@@ -210,12 +208,12 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           FlightTrackingCard(tripId: tripId),
 
         const SizedBox(height: 14),
-        const Text(
+        Text(
           'Bookings',
           style: TextStyle(
             fontSize: 16,
             fontWeight: FontWeight.w700,
-            color: Colors.black87,
+            color: theme.colorScheme.onSurface,
           ),
         ),
         const SizedBox(height: 8),
@@ -226,13 +224,13 @@ class _TripDetailScreenState extends ConsumerState<TripDetailScreen> {
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(14),
-            decoration: _card,
-            child: const Center(
+            decoration: _cardDecoration(context),
+            child: Center(
               child: Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 child: Text(
                   'No bookings yet for this trip.',
-                  style: TextStyle(fontSize: 13, color: Colors.black45),
+                  style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurfaceVariant),
                 ),
               ),
             ),
@@ -305,10 +303,13 @@ class _BookingCard extends StatelessWidget {
     final waybill = booking['waybill']?.toString() ?? '';
     final isPending = status == 'HOLD_PLACED';
 
-    return Container(
+    final bookingId = booking['id'];
+    return GestureDetector(
+      onTap: bookingId != null ? () => context.push('/booking/$bookingId/timeline') : null,
+      child: Container(
       margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(14),
-      decoration: _card,
+      decoration: _cardDecoration(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -325,11 +326,11 @@ class _BookingCard extends StatelessWidget {
             ],
           ),
           const SizedBox(height: 6),
-          Text('From: $buyerName', style: const TextStyle(fontSize: 13, color: Colors.black54)),
+          Text('From: $buyerName', style: TextStyle(fontSize: 13, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           if (amount != null)
             Text('$currency ${amount.toString()}', style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w700, color: AppTheme.primary)),
           if (waybill.isNotEmpty)
-            Text('Waybill: $waybill', style: const TextStyle(fontSize: 12, color: Colors.black45)),
+            Text('Waybill: $waybill', style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
           if (isPending) ...[
             const SizedBox(height: 10),
             Row(
@@ -360,6 +361,7 @@ class _BookingCard extends StatelessWidget {
           ],
         ],
       ),
+    ),
     );
   }
 }
@@ -397,7 +399,7 @@ class _TripStatusBanner extends StatelessWidget {
               children: [
                 Text(title, style: TextStyle(fontWeight: FontWeight.w700, color: color, fontSize: 14)),
                 const SizedBox(height: 2),
-                Text(subtitle, style: const TextStyle(fontSize: 12, color: Colors.black54)),
+                Text(subtitle, style: TextStyle(fontSize: 12, color: Theme.of(context).colorScheme.onSurfaceVariant)),
               ],
             ),
           ),
@@ -407,8 +409,8 @@ class _TripStatusBanner extends StatelessWidget {
   }
 }
 
-const _card = BoxDecoration(
-  color: Colors.white,
-  borderRadius: BorderRadius.all(Radius.circular(12)),
-  border: Border.fromBorderSide(BorderSide(color: Color(0xFFE0E2EB))),
+BoxDecoration _cardDecoration(BuildContext context) => BoxDecoration(
+  color: Theme.of(context).colorScheme.surface,
+  borderRadius: const BorderRadius.all(Radius.circular(12)),
+  border: Border.all(color: Theme.of(context).dividerColor),
 );

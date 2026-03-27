@@ -43,7 +43,6 @@ class _BookingUnderReviewScreenState extends State<BookingUnderReviewScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Scaffold(
-      backgroundColor: Colors.white,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(20),
@@ -54,7 +53,7 @@ class _BookingUnderReviewScreenState extends State<BookingUnderReviewScreen> {
                 width: 90,
                 height: 90,
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF0F4FF),
+                  color: AppTheme.primary.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(18),
                 ),
                 child: const Icon(Icons.verified, size: 48, color: AppTheme.primary),
@@ -73,10 +72,10 @@ class _BookingUnderReviewScreenState extends State<BookingUnderReviewScreen> {
                 textAlign: TextAlign.center,
               ),
               const SizedBox(height: 18),
-              const LinearProgressIndicator(
+              LinearProgressIndicator(
                 minHeight: 4,
                 color: AppTheme.primary,
-                backgroundColor: Color(0xFFE0E2EB),
+                backgroundColor: theme.dividerColor,
               ),
             ],
           ),

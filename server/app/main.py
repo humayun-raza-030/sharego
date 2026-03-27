@@ -90,7 +90,7 @@ def create_application() -> FastAPI:
         for local_host in ("testserver", "localhost", "127.0.0.1"):
             if local_host not in trusted_hosts:
                 trusted_hosts.append(local_host)
-    if trusted_hosts:
+    if trusted_hosts and "*" not in trusted_hosts:
         app.add_middleware(TrustedHostMiddleware, allowed_hosts=trusted_hosts)
 
     cors_origins = _parse_csv(settings.cors_allowed_origins)

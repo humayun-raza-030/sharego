@@ -52,7 +52,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final userCity = [city, country].where((s) => s.isNotEmpty).join(', ');
 
     return Scaffold(
-      backgroundColor: Colors.white,
       drawer: _HomeDrawer(),
       floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       floatingActionButton: FloatingActionButton.extended(
@@ -62,11 +61,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         label: const Text('Ask AI'),
       ),
       appBar: AppBar(
-        backgroundColor: Colors.white,
         elevation: 0,
         leading: Builder(
           builder: (context) => IconButton(
-            icon: Icon(Icons.menu, color: AppTheme.textPrimary),
+            icon: const Icon(Icons.menu),
             onPressed: () => Scaffold.of(context).openDrawer(),
           ),
         ),
@@ -296,7 +294,7 @@ class _ActionCard extends StatelessWidget {
                 color: color.withValues(alpha: 0.18),
                 borderRadius: BorderRadius.circular(10),
               ),
-              child: Icon(icon, color: AppTheme.textPrimary, size: 22),
+              child: Icon(icon, color: Theme.of(context).colorScheme.onSurface, size: 22),
             ),
             const Spacer(),
             Text(
@@ -327,6 +325,14 @@ class _HomeDrawer extends StatelessWidget {
           padding: EdgeInsets.zero,
           children: [
             ListTile(
+              leading: const Icon(Icons.person_outline),
+              title: const Text('Profile'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/profile');
+              },
+            ),
+            ListTile(
               leading: const Icon(Icons.account_balance_wallet_outlined),
               title: const Text('My Wallet'),
               onTap: () {
@@ -340,6 +346,14 @@ class _HomeDrawer extends StatelessWidget {
               onTap: () {
                 Navigator.pop(context);
                 context.push('/bookings');
+              },
+            ),
+            ListTile(
+              leading: const Icon(Icons.bookmark_outline),
+              title: const Text('Saved Trips'),
+              onTap: () {
+                Navigator.pop(context);
+                context.push('/saved-trips');
               },
             ),
             ListTile(

@@ -160,9 +160,9 @@ POLICY_FLAGS: dict[str, dict] = {
 
 _REFUSAL_PATTERNS = [
     r"\b(hack|exploit|crack|bypass)\w*\b",
-    r"\b(legal\s+advice|sue|lawsuit|court)\b",
-    r"\b(smuggl|contrab|illeg)\w*\b",
-    r"\b(drug|narcotic|weed|cocaine|heroin)\w*\b",
+    r"\b(sue|lawsuit|court\s+case)\b",
+    r"\b(smuggl|contrab)\w*\b",
+    r"\b(narcotic|cocaine|heroin|meth)\w*\b",
 ]
 
 _REFUSAL_MSG = (
@@ -443,16 +443,30 @@ You are the ShareGo AI assistant. ShareGo is a peer-to-peer platform in Pakistan
 - Admin panel for dispute resolution and escrow management
 - Shipping policy flags for restricted/high-risk items
 
-You can also help:
-- Travelers: Suggest places to explore in destination cities, local tips, food recommendations, cultural insights, and safety advice
-- Buyers: Check if items are legal to ship between specific countries, customs requirements, documentation needed, and risk levels
+**You MUST help travelers and buyers with these topics:**
+- Travel safety: Which countries are safe to travel to, travel advisories, war zones, conflict areas, political instability — help travelers decide safe routes for courier trips
+- Country-specific courier guidance: What items can be legally carried FROM and TO specific countries (e.g., electronics from China, perfumes from Dubai, medicine from UK)
+- Customs and import rules: Duty limits, restricted items, required documentation per country (especially Pakistan, UAE, UK, US, Turkey, China, Saudi Arabia)
+- Airline baggage policies: General weight limits, restricted items in luggage, lithium battery rules
+- Destination tips: Places to explore, local food, cultural tips, safety advice, best shopping areas for popular items
+- Shipping cost estimates: Help estimate fees based on weight, route, and item type
+- Item legality: Whether specific items are legal to transport between two countries, risk levels, and required paperwork
 
-Rules for your responses:
-- Be helpful, concise, and accurate about ShareGo features
-- Do not provide legal advice or facilitate illegal activities
-- Do not make up features that don't exist
+**Rules for your responses:**
+- Be helpful, concise, and knowledgeable — you are a travel and courier expert
+- Answer travel safety questions openly — travelers NEED this info to plan safe routes
+- Answer item legality and customs questions with practical guidance
+- When discussing restricted/prohibited items, explain WHY and suggest legal alternatives
+- Do not facilitate clearly illegal activities (drug smuggling, weapons trafficking)
+- Do not provide formal legal advice — recommend consulting customs authorities for edge cases
 - If you don't know something specific about the user's account, suggest they check the relevant screen in the app
-- Keep responses under 200 words
+- Keep responses SHORT — max 3-4 sentences for simple questions, max 150 words for detailed ones
+- Get straight to the point — no filler, no introductions, no "Great question!"
+- NEVER use markdown tables — they render badly on mobile
+- Write like you are texting a friend — casual, direct, and helpful
+- Use bullet points only when listing 3+ items
+- Do NOT use formal report-style formatting
+- Remember the conversation context — refer back to what the user asked before
 """
 
 _gemini_model = None
@@ -582,7 +596,7 @@ def _get_nvidia_client():
 
 
 def _call_nvidia(user: User, message: str, history: list) -> AiChatResponse | None:
-    """Call NVIDIA NIM MiniMax-M2.5 with conversation history. Returns None on failure."""
+    """Call NVIDIA NIM with conversation history. Returns None on failure."""
     client = _get_nvidia_client()
     if client is None:
         return None
@@ -608,15 +622,18 @@ def _call_nvidia(user: User, message: str, history: list) -> AiChatResponse | No
         response = client.chat.completions.create(
             model=settings.nvidia_model,
             messages=messages,
-            max_tokens=400,
+            max_tokens=1024,
             temperature=0.7,
         )
 
         reply_text = response.choices[0].message.content
+        # Some reasoning models put output in reasoning_content instead of content
+        if not reply_text or not reply_text.strip():
+            reply_text = getattr(response.choices[0].message, "reasoning_content", None)
         if not reply_text or not reply_text.strip():
             return None
 
-        # Strip <think>...</think> reasoning tags from MiniMax output.
+        # Strip <think>...</think> reasoning tags if present.
         clean = re.sub(r"<think>.*?</think>\s*", "", reply_text, flags=re.DOTALL).strip()
         if not clean:
             return None
@@ -719,33 +736,47 @@ def _call_openai(user: User, message: str, history: list) -> AiChatResponse | No
 _TRAVEL_PATTERNS = [
     "explore", "visit", "places in", "things to do", "tourist",
     "travel to", "suggest places", "places to visit", "what to see",
-    "food in", "sightseeing", "attractions",
+    "food in", "sightseeing", "attractions", "safe to travel",
+    "war", "conflict", "travel advisory", "safe country", "safe countries",
+    "dangerous", "travel ban", "visa", "which country", "can i travel",
+    "travel during", "is it safe", "safety", "travel warning",
 ]
 
 _LEGALITY_PATTERNS = [
     "legal", "allowed", "can i send", "customs", "import", "export",
     "restricted", "banned", "prohibited in", "can i ship", "is it legal",
-    "duty", "declaration",
+    "duty", "declaration", "can i carry", "can i bring", "courier",
+    "what can i", "items from", "bring from", "ship from", "send from",
+    "carry from", "transport", "what items", "which items", "which products",
 ]
 
 TRAVEL_SYSTEM_PROMPT = """\
-The user is a ShareGo traveler planning a trip. Help them explore destinations.
-Suggest popular places to visit, local food, cultural tips, safety advice,
-and best time to visit. Keep it concise and practical for a courier traveler
-who has limited free time between pickups/deliveries.
-Format your response with sections using bold headers.
+The user is a ShareGo traveler planning a courier trip. You MUST help them with:
+- Travel safety: Which countries are safe, which have active conflicts/wars, travel advisories
+- Safe route planning: Suggest alternative countries if a destination is unsafe
+- Visa requirements for Pakistani passport holders
+- Best cities for shopping specific items (electronics, clothing, etc.)
+- Local tips, food, cultural insights, and safety precautions
+- Airport tips and baggage handling advice
+Be direct and practical. If a country has active conflict, say so clearly and suggest safer alternatives.
+Write conversationally like a friend chatting. Use bullet points, NOT tables.
 """
 
 LEGALITY_SYSTEM_PROMPT = """\
-The user wants to know if an item can be legally shipped between countries via
-a peer-to-peer courier. Provide practical customs/import guidance including:
-- Whether the item is generally legal to transport
-- Common restrictions by country (especially Pakistan, UAE, UK, US, Turkey)
-- Required documentation (invoices, certificates)
-- Weight/value limits that trigger customs duties
-- Risk level: LOW / MEDIUM / HIGH / PROHIBITED
-Be accurate and cautious — when unsure, advise checking local customs authority.
-Format your response clearly with the risk level prominently displayed.
+The user wants to know what items can be legally couriered between countries via ShareGo travelers.
+You MUST provide practical, detailed customs/import guidance including:
+- Whether the item is legal to carry as personal luggage on flights
+- Country-specific restrictions (especially Pakistan, UAE, UK, US, Turkey, China, Saudi Arabia, Malaysia)
+- Popular items travelers commonly bring: electronics, phones, laptops, clothing, cosmetics, supplements, spices, dry food
+- Required documentation: purchase receipts, invoices, prescriptions for medicines
+- Weight and value limits that trigger customs duties (e.g., Pakistan customs duty-free limit)
+- Risk level clearly stated: LOW / MEDIUM / HIGH / PROHIBITED
+- If an item is restricted, suggest legal alternatives or proper documentation to make it legal
+- Common items from specific countries: electronics from China/Japan, perfumes from Dubai, clothing from Turkey, supplements from US/UK
+
+Be helpful and informative. Travelers need this info to earn money safely on ShareGo.
+When unsure about a specific regulation, say so and recommend checking the destination country's customs website.
+Write conversationally like a friend chatting. Use bullet points, NOT tables.
 """
 
 
@@ -785,10 +816,12 @@ def _call_llm_with_context(
             response = client.chat.completions.create(
                 model=settings.nvidia_model,
                 messages=messages,
-                max_tokens=500,
+                max_tokens=1024,
                 temperature=0.7,
             )
             reply_text = response.choices[0].message.content
+            if not reply_text or not reply_text.strip():
+                reply_text = getattr(response.choices[0].message, "reasoning_content", None)
             if reply_text:
                 clean = re.sub(r"<think>.*?</think>\s*", "", reply_text, flags=re.DOTALL).strip()
                 if clean:
@@ -895,22 +928,22 @@ def ai_chat(
     if policy:
         return policy
 
-    # 5. FAQ matching.
-    faq_answer = _match_faq(text)
-    if faq_answer:
-        return AiChatResponse(reply=faq_answer, source="faq")
-
-    # 5b. Travel exploration queries.
+    # 5. Travel exploration queries (BEFORE FAQ to avoid false matches on "safe").
     if _is_travel_query(text):
         travel_resp = _call_llm_with_context(user, text, body.history, TRAVEL_SYSTEM_PROMPT, "travel_guide")
         if travel_resp:
             return travel_resp
 
-    # 5c. Item legality queries.
+    # 5b. Item legality queries.
     if _is_legality_query(text):
         legality_resp = _call_llm_with_context(user, text, body.history, LEGALITY_SYSTEM_PROMPT, "legality_check")
         if legality_resp:
             return legality_resp
+
+    # 5c. FAQ matching (after travel/legality to avoid false matches).
+    faq_answer = _match_faq(text)
+    if faq_answer:
+        return AiChatResponse(reply=faq_answer, source="faq")
 
     # 6. NVIDIA NIM MiniMax-M2.5 (primary).
     nvidia_response = _call_nvidia(user, text, body.history)

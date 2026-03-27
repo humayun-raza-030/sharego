@@ -22,11 +22,13 @@ from app.models import (
     AuditLog,
     Booking,
     BookingStatus,
+    BookingUpdate,
     EscrowTx,
     FeatureFlag,
     HandoverEvent,
     KYCProfile,
     MarketListing,
+    Message,
     Review,
     Trip,
     User,
@@ -138,6 +140,7 @@ async def kyc_page(
 async def kyc_approve_action(
     user_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     profile = session.exec(
         select(KYCProfile).where(KYCProfile.user_id == user_id)
@@ -153,7 +156,7 @@ async def kyc_approve_action(
         session.commit()
         write_audit_log(
             session,
-            actor="admin_panel",
+            actor=f"admin:{admin_user.email}",
             action="kyc_approved",
             entity=f"kyc_profile:{profile.id}",
             before={"status": "pending"},
@@ -166,6 +169,7 @@ async def kyc_approve_action(
 async def kyc_reject_action(
     user_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     profile = session.exec(
         select(KYCProfile).where(KYCProfile.user_id == user_id)
@@ -181,7 +185,7 @@ async def kyc_reject_action(
         session.commit()
         write_audit_log(
             session,
-            actor="admin_panel",
+            actor=f"admin:{admin_user.email}",
             action="kyc_rejected",
             entity=f"kyc_profile:{profile.id}",
             before={"status": "pending"},
@@ -239,6 +243,7 @@ async def trips_page(
 async def trip_approve_action(
     trip_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     trip = session.get(Trip, trip_id)
     if trip and trip.status == "pending_review":
@@ -248,7 +253,7 @@ async def trip_approve_action(
         session.commit()
         write_audit_log(
             session,
-            actor="admin_panel",
+            actor=f"admin:{admin_user.email}",
             action="trip_approved",
             entity=f"trip:{trip_id}",
             before={"status": old_status},
@@ -262,6 +267,7 @@ async def trip_reject_action(
     trip_id: int,
     request: Request,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     trip = session.get(Trip, trip_id)
     if trip and trip.status == "pending_review":
@@ -274,7 +280,7 @@ async def trip_reject_action(
         session.commit()
         write_audit_log(
             session,
-            actor="admin_panel",
+            actor=f"admin:{admin_user.email}",
             action="trip_rejected",
             entity=f"trip:{trip_id}",
             before={"status": old_status},
@@ -374,6 +380,7 @@ async def wallet_topup_action(
     user_id: int,
     request: Request,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     from app.domain.escrow.service import _add_wallet_entry
     form = await request.form()
@@ -389,7 +396,7 @@ async def wallet_topup_action(
         )
         write_audit_log(
             session,
-            actor="admin_panel",
+            actor=f"admin:{admin_user.email}",
             action="WALLET_TOPUP",
             entity=f"user:{user_id}",
             after={"amount": amount},
@@ -439,9 +446,10 @@ async def bookings_page(
 async def booking_release_action(
     booking_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     from app.domain.escrow.service import release
-    release(session, booking_id=booking_id, admin_id=0, request_id="admin_panel")
+    release(session, booking_id=booking_id, admin_id=admin_user.id, request_id=f"admin:{admin_user.email}")
     return RedirectResponse(url="/admin/bookings", status_code=303)
 
 
@@ -449,10 +457,86 @@ async def booking_release_action(
 async def booking_refund_action(
     booking_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     from app.domain.escrow.service import refund
-    refund(session, booking_id=booking_id, admin_id=0, request_id="admin_panel")
+    refund(session, booking_id=booking_id, admin_id=admin_user.id, request_id=f"admin:{admin_user.email}")
     return RedirectResponse(url="/admin/bookings", status_code=303)
+
+
+@router.get("/booking-detail/{booking_id}", response_class=HTMLResponse)
+async def booking_detail_page(
+    request: Request,
+    booking_id: int,
+    session: Session = Depends(get_session_dep),
+    settings: Settings = Depends(get_settings_dep),
+):
+    booking = session.get(Booking, booking_id)
+    if not booking:
+        raise HTTPException(status_code=404, detail="Booking not found")
+
+    escrow = session.exec(
+        select(EscrowTx).where(EscrowTx.booking_id == booking_id)
+    ).first()
+
+    trip = session.get(Trip, booking.trip_id)
+    from app.models import RequestItem
+    req = session.get(RequestItem, booking.request_id)
+
+    # Traveler status updates
+    updates = session.exec(
+        select(BookingUpdate)
+        .where(BookingUpdate.booking_id == booking_id)
+        .order_by(col(BookingUpdate.created_at).asc())
+    ).all()
+
+    # Messages linked to this booking
+    messages_raw = session.exec(
+        select(Message)
+        .where(Message.booking_id == booking_id)
+        .order_by(col(Message.created_at).asc())
+    ).all()
+
+    user_cache: dict[int, User | None] = {}
+    def _get_user_name(uid: int) -> str:
+        if uid not in user_cache:
+            user_cache[uid] = session.get(User, uid)
+        u = user_cache[uid]
+        return (u.name or u.email) if u else f"User #{uid}"
+
+    msg_rows = []
+    for m in messages_raw:
+        msg_rows.append({
+            "id": m.id,
+            "sender_name": _get_user_name(m.sender_id),
+            "receiver_name": _get_user_name(m.receiver_id),
+            "content": m.content,
+            "created_at": m.created_at,
+            "read_at": m.read_at,
+        })
+
+    update_rows = []
+    for u in updates:
+        update_rows.append({
+            "update_type": u.update_type,
+            "note": u.note,
+            "created_at": u.created_at,
+            "user_name": _get_user_name(u.user_id),
+        })
+
+    return templates.TemplateResponse("booking_detail.html", {
+        "request": request,
+        "page": "bookings",
+        "env": settings.env,
+        "booking": booking,
+        "escrow": escrow,
+        "trip": trip,
+        "buyer_request": req,
+        "traveler_name": _get_user_name(trip.user_id) if trip else "Unknown",
+        "buyer_name": _get_user_name(req.user_id) if req else "Unknown",
+        "updates": update_rows,
+        "messages": msg_rows,
+    })
 
 
 # ═══════════════════════════════════════════════════════════════════════
@@ -489,6 +573,7 @@ async def marketplace_page(
 async def market_flag_action(
     listing_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     listing = session.get(MarketListing, listing_id)
     if listing:
@@ -499,7 +584,7 @@ async def market_flag_action(
         session.commit()
         write_audit_log(
             session,
-            actor="admin_panel",
+            actor=f"admin:{admin_user.email}",
             action="listing_flagged",
             entity=f"market_listing:{listing_id}",
             before={"status": old_status},
@@ -512,6 +597,7 @@ async def market_flag_action(
 async def market_unflag_action(
     listing_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     listing = session.get(MarketListing, listing_id)
     if listing and listing.status == "flagged":
@@ -521,7 +607,7 @@ async def market_unflag_action(
         session.commit()
         write_audit_log(
             session,
-            actor="admin_panel",
+            actor=f"admin:{admin_user.email}",
             action="listing_unflagged",
             entity=f"market_listing:{listing_id}",
             before={"status": "flagged"},
@@ -564,6 +650,12 @@ async def audit_page(
     available_actions = [
         r for r in session.exec(select(AuditLog.action).distinct()).all()
     ]
+    # Get distinct actor values for filter dropdown
+    available_actors = [
+        r for r in session.exec(
+            select(AuditLog.actor).distinct().where(AuditLog.actor.isnot(None))
+        ).all()
+    ]
 
     return templates.TemplateResponse("audit.html", {
         "request": request,
@@ -571,11 +663,13 @@ async def audit_page(
         "env": settings.env,
         "logs": logs,
         "total": total,
+        "current_page": page,
         "total_pages": total_pages,
         "filter_action": action,
         "filter_actor": actor,
         "filter_entity": entity,
         "available_actions": sorted(available_actions),
+        "available_actors": sorted(available_actors),
     })
 
 
@@ -645,6 +739,7 @@ async def flags_page(
 async def flags_create_action(
     request: Request,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     form = await request.form()
     key = str(form.get("key", "")).strip()
@@ -656,7 +751,7 @@ async def flags_create_action(
             flag = FeatureFlag(key=key, value=value, cohort=cohort)
             session.add(flag)
             session.commit()
-            write_audit_log(session, actor="admin_panel", action="flag_created", entity=f"feature_flag:{key}", after={"value": value})
+            write_audit_log(session, actor=f"admin:{admin_user.email}", action="flag_created", entity=f"feature_flag:{key}", after={"value": value})
     return RedirectResponse(url="/admin/flags", status_code=303)
 
 
@@ -664,6 +759,7 @@ async def flags_create_action(
 async def flags_toggle_action(
     flag_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     flag = session.get(FeatureFlag, flag_id)
     if flag:
@@ -673,7 +769,7 @@ async def flags_toggle_action(
         session.add(flag)
         session.commit()
         write_audit_log(
-            session, actor="admin_panel", action="flag_toggled",
+            session, actor=f"admin:{admin_user.email}", action="flag_toggled",
             entity=f"feature_flag:{flag.id}", before={"value": old}, after={"value": flag.value},
         )
     return RedirectResponse(url="/admin/flags", status_code=303)
@@ -683,10 +779,11 @@ async def flags_toggle_action(
 async def flags_delete_action(
     flag_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     flag = session.get(FeatureFlag, flag_id)
     if flag:
-        write_audit_log(session, actor="admin_panel", action="flag_deleted", entity=f"feature_flag:{flag.id}", before={"key": flag.key})
+        write_audit_log(session, actor=f"admin:{admin_user.email}", action="flag_deleted", entity=f"feature_flag:{flag.id}", before={"key": flag.key})
         session.delete(flag)
         session.commit()
     return RedirectResponse(url="/admin/flags", status_code=303)
@@ -715,6 +812,7 @@ async def users_page(
 async def user_make_admin(
     user_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     user = session.get(User, user_id)
     if user and "admin" not in user.roles:
@@ -722,7 +820,7 @@ async def user_make_admin(
         user.roles_csv = ",".join(roles)
         session.add(user)
         session.commit()
-        write_audit_log(session, actor="admin_panel", action="role_changed", entity=f"user:{user_id}", after={"roles": user.roles_csv})
+        write_audit_log(session, actor=f"admin:{admin_user.email}", action="role_changed", entity=f"user:{user_id}", after={"roles": user.roles_csv})
     return RedirectResponse(url="/admin/users", status_code=303)
 
 
@@ -730,6 +828,7 @@ async def user_make_admin(
 async def user_remove_admin(
     user_id: int,
     session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
 ):
     user = session.get(User, user_id)
     if user and "admin" in user.roles:
@@ -737,5 +836,23 @@ async def user_remove_admin(
         user.roles_csv = ",".join(roles) if roles else "user"
         session.add(user)
         session.commit()
-        write_audit_log(session, actor="admin_panel", action="role_changed", entity=f"user:{user_id}", after={"roles": user.roles_csv})
+        write_audit_log(session, actor=f"admin:{admin_user.email}", action="role_changed", entity=f"user:{user_id}", after={"roles": user.roles_csv})
+    return RedirectResponse(url="/admin/users", status_code=303)
+
+
+@router.post("/user-action/{user_id}/delete")
+async def user_delete(
+    user_id: int,
+    session: Session = Depends(get_session_dep),
+    admin_user: User = Depends(_require_admin),
+):
+    user = session.get(User, user_id)
+    if not user:
+        return RedirectResponse(url="/admin/users", status_code=303)
+    if user.id == admin_user.id:
+        return RedirectResponse(url="/admin/users", status_code=303)
+    before = {"email": user.email, "name": user.name, "roles": user.roles_csv}
+    session.delete(user)
+    session.commit()
+    write_audit_log(session, actor=f"admin:{admin_user.email}", action="user_deleted", entity=f"user:{user_id}", before=before)
     return RedirectResponse(url="/admin/users", status_code=303)
