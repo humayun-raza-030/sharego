@@ -156,7 +156,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                   children: [
                     const SizedBox(height: 20),
 
-                    // LOGO
                     SizedBox(
                       width: 180,
                       child: Image.asset(
@@ -167,7 +166,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                     const SizedBox(height: 22),
 
-                    // WHITE CARD
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -195,7 +193,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                           const SizedBox(height: 20),
 
-                          // SOCIAL SIGNUP
                           Row(
                             children: [
                               const Text("Sign Up with:   "),
@@ -210,7 +207,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                           const SizedBox(height: 20),
 
-                          // EMAIL
                           TextField(
                             controller: emailCtrl,
                             keyboardType: TextInputType.emailAddress,
@@ -221,7 +217,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           ),
                           const SizedBox(height: 14),
 
-                          // PHONE
                           TextField(
                             controller: phoneCtrl,
                             keyboardType: TextInputType.phone,
@@ -234,7 +229,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
                           if (!_useOtp) ...[
                             const SizedBox(height: 14),
 
-                            // PASSWORD
                             TextField(
                               controller: passwordCtrl,
                               obscureText: _obscurePassword,
@@ -250,7 +244,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                             const SizedBox(height: 14),
 
-                            // CONFIRM PASSWORD
                             TextField(
                               controller: confirmPasswordCtrl,
                               obscureText: _obscurePassword,
@@ -263,13 +256,11 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                           const SizedBox(height: 20),
 
-                          // ERROR BANNER
                           if (_error != null) ...[
                             ErrorBanner(_error!),
                             const SizedBox(height: 12),
                           ],
 
-                          // SIGNUP BUTTON
                           LoadingButton(
                             onPressed: _useOtp ? _requestOtp : _registerWithPassword,
                             label: _useOtp ? 'Sign Up with OTP' : 'Sign Up',
@@ -278,7 +269,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
 
                           const SizedBox(height: 12),
 
-                          // TOGGLE OTP / PASSWORD
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -318,7 +308,6 @@ class _SignupScreenState extends ConsumerState<SignupScreen> {
             ),
           ),
 
-          // FOOTER
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
             decoration: BoxDecoration(

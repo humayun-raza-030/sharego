@@ -67,7 +67,6 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
       return;
     }
 
-    // Show processing dialog
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -231,7 +230,6 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
 
                       const SizedBox(height: 20),
 
-                      // Payment Summary
                       Text(
                         'Payment Summary',
                         style: TextStyle(
@@ -276,7 +274,6 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                       ),
                       const SizedBox(height: 12),
 
-                      // Escrow badge
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
                         decoration: BoxDecoration(
@@ -298,7 +295,6 @@ class _BookingReviewScreenState extends ConsumerState<BookingReviewScreen> {
                         ),
                       ),
 
-                      // Insufficient balance warning
                       if (!_loadingBalance && !hasEnough) ...[
                         const SizedBox(height: 12),
                         Container(

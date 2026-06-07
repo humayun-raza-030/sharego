@@ -413,10 +413,6 @@ It has a strict system prompt limiting it to ShareGo-related questions, travel s
 | `ShareGo_Proposal.pdf` | Original project proposal |
 | `ShareGo_Report_2_SRS.pdf` | SRS, use cases, data dictionary, architecture |
 | `ShareGo_UI_UX_Prototype.pdf` | UI/UX prototype design document |
-| `ShareGo_FYP_Project_Documentation.md` | Main FYP documentation |
-| `sharego_mobile_app_plan.md` | Mobile app implementation plan |
-| `ui.md` | Original Flutter UI prototype (single file) |
-| `Instructions.docx` | Instructions for updating the final report |
-| `Instructions.pdf` | Same in PDF format |
+| `Instructions.pdf` | Instructions for updating the final report |
 | `ShareGo_Logo.png` | Brand logo |
 | `CHEATSHEET.md` | This file |

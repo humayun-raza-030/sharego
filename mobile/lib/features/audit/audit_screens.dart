@@ -68,7 +68,6 @@ class _AuditCenterScreenState extends ConsumerState<AuditCenterScreen> {
         ),
         body: TabBarView(
           children: [
-            // My Reports tab
             _loading
                 ? const Padding(padding: EdgeInsets.all(16), child: SkeletonList(items: 3, itemHeight: 60))
                 : _error != null

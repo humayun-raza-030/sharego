@@ -380,7 +380,6 @@ class _BookingTimelineScreenState extends ConsumerState<BookingTimelineScreen> {
               ),
             ),
 
-            // Action buttons
             const SizedBox(height: 12),
             Row(
               children: [

@@ -1,6 +1,6 @@
 name: sharego
 description: ShareGo mobile app (Flutter)
-version: 0.0.1+1
+version: 2.0.0+2
 environment:
   sdk: ">=3.3.0 <4.0.0"
 
@@ -37,14 +37,6 @@ flutter:
     - assets/sharego_logo.png
     - assets/sharego_logo2.png
     - assets/google.png
-    - assets/1 mc.png
-    - assets/2 mc.png
-    - assets/3 mc.png
-    - assets/4 mc.png
-    - assets/1 ps5.png
-    - assets/2 ps5.png
-    - assets/3 ps5.png
-    - assets/4 ps5.png
 
 flutter_launcher_icons:
   android: true

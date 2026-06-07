@@ -130,7 +130,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
               ),
               const SizedBox(height: 32),
 
-              // Name field (required)
               const Text(
                 'Display Name *',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),
@@ -156,7 +155,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
               const SizedBox(height: 20),
 
-              // City field
               Row(
                 children: [
                   const Text(
@@ -207,7 +205,6 @@ class _ProfileSetupScreenState extends ConsumerState<ProfileSetupScreen> {
 
               const SizedBox(height: 20),
 
-              // Country field
               const Text(
                 'Country',
                 style: TextStyle(fontWeight: FontWeight.w700, fontSize: 13),

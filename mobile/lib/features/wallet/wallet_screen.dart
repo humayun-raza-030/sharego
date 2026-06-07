@@ -222,7 +222,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
                   child: ListView(
                     padding: const EdgeInsets.all(16),
                     children: [
-                      // Balance card
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
@@ -287,7 +286,6 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
                       const SizedBox(height: 16),
 
-                      // Top Up button
                       SizedBox(
                         width: double.infinity,
                         height: 48,
@@ -306,14 +304,12 @@ class _WalletScreenState extends ConsumerState<WalletScreen> {
 
                       const SizedBox(height: 24),
 
-                      // Transaction header
                       Text(
                         'Transactions',
                         style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
                       ),
                       const SizedBox(height: 12),
 
-                      // Transactions list
                       if (transactions.isEmpty)
                         const Padding(
                           padding: EdgeInsets.symmetric(vertical: 40),
