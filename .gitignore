@@ -50,7 +50,28 @@ mobile/ios/Runner/GoogleService-Info.plist
 # Claude / AI assistant local files
 .claude/
 **/.claude/
+.claude.json
 CLAUDE.md
 CLAUDE.local.md
 claude.md
 claude.local.md
+
+# Other AI coding assistants (local config, rules, caches, chat history)
+.cursor/
+.cursorrules
+.cursorignore
+.cursorindexingignore
+.aider*
+.windsurf/
+.windsurfrules
+.codeium/
+.continue/
+.clinerules
+.cline/
+.roo/
+.roomodes
+.gemini/
+GEMINI.md
+.codex/
+.tabnine/
+.ai/

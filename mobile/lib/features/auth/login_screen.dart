@@ -152,7 +152,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   children: [
                     const SizedBox(height: 20),
 
-                    // LOGO
                     SizedBox(
                       width: 180,
                       child: Image.asset(
@@ -163,7 +162,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                     const SizedBox(height: 22),
 
-                    // WHITE CARD
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -191,7 +189,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           const SizedBox(height: 16),
 
-                          // EMAIL
                           TextField(
                             controller: emailCtrl,
                             keyboardType: TextInputType.emailAddress,
@@ -204,7 +201,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           if (!_useOtp) ...[
                             const SizedBox(height: 14),
 
-                            // PASSWORD
                             TextField(
                               controller: passwordCtrl,
                               obscureText: _obscurePassword,
@@ -238,7 +234,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           const SizedBox(height: 16),
 
-                          // SIGN IN WITH
                           Row(
                             children: [
                               const Text("Sign in with:   "),
@@ -253,7 +248,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           const SizedBox(height: 12),
 
-                          // SIGN UP / TOGGLE
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceBetween,
                             children: [
@@ -287,13 +281,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
                           const SizedBox(height: 20),
 
-                          // ERROR BANNER
                           if (_error != null) ...[
                             ErrorBanner(_error!),
                             const SizedBox(height: 12),
                           ],
 
-                          // LOGIN BUTTON
                           LoadingButton(
                             onPressed: _useOtp ? _requestOtp : _loginWithPassword,
                             label: _useOtp ? 'Login with OTP' : 'Login',
@@ -308,7 +300,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ),
           ),
 
-          // FOOTER
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 14),
             decoration: BoxDecoration(

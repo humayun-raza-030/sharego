@@ -47,9 +47,7 @@ def _require_admin(user: User = Depends(get_current_user_dep)) -> User:
 router = APIRouter(prefix="/admin", tags=["admin-panel"], dependencies=[Depends(_require_admin)])
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  DASHBOARD
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("", response_class=HTMLResponse)
 async def dashboard(
@@ -108,9 +106,7 @@ async def dashboard(
     })
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  KYC QUEUE
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/kyc", response_class=HTMLResponse)
 async def kyc_page(
@@ -194,9 +190,7 @@ async def kyc_reject_action(
     return RedirectResponse(url="/admin/kyc", status_code=303)
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  TRIPS QUEUE
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/trips", response_class=HTMLResponse)
 async def trips_page(
@@ -309,9 +303,7 @@ async def admin_flight_status(
     return await fetch_flight_status(trip.flight_number, settings.aviationstack_api_key)
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  WALLETS
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/wallets", response_class=HTMLResponse)
 async def wallets_page(
@@ -404,9 +396,7 @@ async def wallet_topup_action(
     return RedirectResponse(url="/admin/wallets", status_code=303)
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  BOOKINGS
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/bookings", response_class=HTMLResponse)
 async def bookings_page(
@@ -539,9 +529,7 @@ async def booking_detail_page(
     })
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  MARKETPLACE MODERATION
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/marketplace", response_class=HTMLResponse)
 async def marketplace_page(
@@ -616,9 +604,7 @@ async def market_unflag_action(
     return RedirectResponse(url="/admin/marketplace", status_code=303)
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  AUDIT LOG
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/audit", response_class=HTMLResponse)
 async def audit_page(
@@ -716,9 +702,7 @@ async def audit_api(
     }
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  FEATURE FLAGS (HTML)
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/flags", response_class=HTMLResponse)
 async def flags_page(
@@ -789,9 +773,7 @@ async def flags_delete_action(
     return RedirectResponse(url="/admin/flags", status_code=303)
 
 
-# ═══════════════════════════════════════════════════════════════════════
 #  USERS MANAGEMENT (HTML)
-# ═══════════════════════════════════════════════════════════════════════
 
 @router.get("/users", response_class=HTMLResponse)
 async def users_page(

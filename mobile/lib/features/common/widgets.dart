@@ -2,43 +2,6 @@ import 'package:flutter/material.dart';
 
 import '../../core/app_theme.dart';
 
-class CtaCard extends StatelessWidget {
-  const CtaCard(
-      {super.key,
-      required this.title,
-      required this.icon,
-      required this.onTap});
-  final String title;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(12),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(12),
-          boxShadow: const [
-            BoxShadow(
-                color: Colors.black12, blurRadius: 4, offset: Offset(0, 2))
-          ],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Icon(icon, size: 32, color: Theme.of(context).colorScheme.primary),
-            const Spacer(),
-            Text(title, style: Theme.of(context).textTheme.titleMedium),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
 class HeroCard extends StatelessWidget {
   const HeroCard({super.key, required this.title, this.subtitle, this.onTap});
   final String title;
@@ -73,25 +36,6 @@ class HeroCard extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
-}
-
-class SectionHeader extends StatelessWidget {
-  const SectionHeader(this.title, {super.key, this.action, this.onAction});
-  final String title;
-  final String? action;
-  final VoidCallback? onAction;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(title, style: Theme.of(context).textTheme.titleMedium),
-        if (action != null)
-          TextButton(onPressed: onAction, child: Text(action!)),
-      ],
     );
   }
 }
@@ -219,43 +163,6 @@ class DisclaimerBanner extends StatelessWidget {
                 padding: const EdgeInsets.only(left: 8),
                 child: Icon(Icons.close, size: 18, color: Theme.of(context).colorScheme.onSurfaceVariant),
               ),
-            ),
-        ],
-      ),
-    );
-  }
-}
-
-class OfflineBanner extends StatelessWidget {
-  const OfflineBanner({super.key, this.onRetry});
-  final VoidCallback? onRetry;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      color: Colors.black87,
-      padding: EdgeInsets.only(
-        left: 16,
-        right: 8,
-        top: 8,
-        bottom: 8 + MediaQuery.of(context).padding.bottom,
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.wifi_off, color: Colors.white),
-          const SizedBox(width: 8),
-          const Expanded(
-            child: Text(
-              'Offline mode: some actions are queued until you reconnect.',
-              style:
-                  TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
-            ),
-          ),
-          if (onRetry != null)
-            TextButton(
-              onPressed: onRetry,
-              style: TextButton.styleFrom(foregroundColor: AppTheme.amber),
-              child: const Text('Retry'),
             ),
         ],
       ),

@@ -9,7 +9,6 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from sqlmodel import Session, select
 
 from app.core.audit import write_audit_log
-from app.core.config import get_settings
 from app.db import engine
 from app.models import Booking, BookingStatus, EscrowTx, MarketListing
 
@@ -70,7 +69,6 @@ def expire_stale_bookings() -> None:
 
 def expire_stale_listings() -> None:
     """Transition ACTIVE listings older than listing_expiry_days to expired."""
-    settings = get_settings()
     expiry_days = 30
     cutoff = datetime.utcnow() - timedelta(days=expiry_days)
     with Session(engine) as session:

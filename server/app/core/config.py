@@ -44,12 +44,6 @@ class Settings(BaseSettings):
     trusted_hosts: str = Field("localhost,127.0.0.1")
     security_headers_enabled: bool = Field(True)
 
-    minio_endpoint: str | None = Field(None)
-    minio_access_key: str | None = Field(None)
-    minio_secret_key: str | None = Field(None)
-    minio_bucket: str | None = Field(None)
-    minio_secure: bool = Field(False)
-
     google_client_id: str | None = Field(None)
 
     aviationstack_api_key: str | None = Field(None)

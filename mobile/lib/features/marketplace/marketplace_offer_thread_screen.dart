@@ -342,7 +342,6 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
                 const SizedBox(height: 2),
                 Text(byName, style: const TextStyle(fontSize: 12, color: Colors.black54)),
 
-                // Seller action buttons
                 if (_isSeller && _isActionable(status)) ...[
                   const SizedBox(height: 10),
                   Wrap(
@@ -391,7 +390,6 @@ class _OfferThreadScreenState extends ConsumerState<OfferThreadScreen> {
                   ),
                 ],
 
-                // Buyer withdraw button
                 if (!_isSeller && isMine && _isActionable(status)) ...[
                   const SizedBox(height: 10),
                   SizedBox(

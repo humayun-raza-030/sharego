@@ -120,7 +120,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
       ),
       body: Column(
         children: [
-          // Quick-action chips.
           SizedBox(
             height: 44,
             child: ListView.separated(
@@ -140,7 +139,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
           ),
           const Divider(height: 1),
 
-          // Message list.
           Expanded(
             child: ListView.builder(
               controller: _scrollController,
@@ -157,7 +155,6 @@ class _AiChatScreenState extends ConsumerState<AiChatScreen> {
             ),
           ),
 
-          // Input bar.
           Container(
             decoration: BoxDecoration(
               color: Colors.white,

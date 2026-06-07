@@ -267,7 +267,6 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
 
               const SizedBox(height: 18),
 
-              // FROM / TO / WEIGHT SECTION
               Container(
                 padding:
                     const EdgeInsets.symmetric(horizontal: 4.0, vertical: 4.0),
@@ -401,7 +400,6 @@ class _BookingDateScreenState extends ConsumerState<BookingDateScreen> {
 
               const SizedBox(height: 18),
 
-              // TRAVELER CARDS
               if (_tripsLoading)
                 const Padding(
                   padding: EdgeInsets.all(20),
